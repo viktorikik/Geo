@@ -2,15 +2,15 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>🌍 ГеоМастер — интерактивная карта мира</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌍</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { height: 100%; overflow: hidden; }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
   body {
     font-family: 'Manrope', 'Segoe UI', system-ui, sans-serif;
     color: #eef1ff;
@@ -18,8 +18,12 @@
       radial-gradient(1200px 800px at 80% -10%, rgba(139,92,246,.16), transparent 60%),
       radial-gradient(1000px 700px at 10% 110%, rgba(6,182,212,.12), transparent 60%),
       #070b16;
+    touch-action: none;
   }
-  #map { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  #map {
+    position: fixed; inset: 0; width: 100%; height: 100%; display: block;
+    touch-action: none;
+  }
   #viewport path { vector-effect: non-scaling-stroke; }
   #countries path { cursor: pointer; transition: filter .15s; }
   #countries path:hover { filter: brightness(1.6); }
@@ -63,6 +67,7 @@
     box-shadow: 0 4px 14px rgba(139,92,246,.4);
   }
 
+  /* Плашка: десктоп */
   .panel {
     position: fixed; top: 16px; right: 16px; width: 344px; z-index: 10;
     background: rgba(11,16,32,.72); backdrop-filter: blur(22px) saturate(1.3);
@@ -166,14 +171,48 @@
     padding: 6px 12px; border-radius: 10px; font-size: 13px; font-weight: 600;
   }
 
+  /* ============ МОБИЛЬНАЯ ПЛАШКА ============ */
+  .panel-handle {
+    display: none;
+    width: 100%; padding: 10px 0 6px; cursor: pointer;
+    text-align: center; user-select: none;
+  }
+  .panel-handle-bar {
+    width: 42px; height: 5px; border-radius: 999px;
+    background: rgba(255,255,255,.25); margin: 0 auto 8px;
+  }
+  .panel-handle-title {
+    font-size: 14px; font-weight: 700; opacity: .85;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 80%; margin: 0 auto;
+  }
+
   @media (max-width: 700px) {
-    .panel { top: auto; bottom: 12px; left: 12px; right: 12px; width: auto; max-height: 44vh; padding: 18px; }
     .hud { top: 10px; left: 10px; gap: 8px; }
     .logo { font-size: 15px; padding: 8px 14px; }
     .mode-btn { padding: 8px 12px; font-size: 13px; }
     .view-btn { padding: 6px 10px; font-size: 12px; }
     .zoom-controls { bottom: auto; top: 42%; right: 10px; }
+    .zoom-controls button { width: 40px; height: 40px; font-size: 18px; }
     .q-target { font-size: 24px; }
+
+    /* Плашка-шторка снизу */
+    .panel {
+      top: auto; bottom: 0; left: 0; right: 0; width: 100%;
+      max-height: 70vh; padding: 0 18px 18px;
+      border-radius: 22px 22px 0 0;
+      transition: transform .35s cubic-bezier(.2,.8,.2,1);
+      transform: translateY(calc(100% - 56px));
+    }
+    .panel.expanded { transform: translateY(0); }
+    .panel-handle { display: block; }
+    .panel-content { opacity: 0; pointer-events: none; transition: opacity .2s .1s; }
+    .panel.expanded .panel-content { opacity: 1; pointer-events: auto; }
+    .panel h2 { font-size: 20px; }
+    .panel p { font-size: 14px; }
+    .chip { padding: 8px 12px; font-size: 13px; }
+    .btn { padding: 10px 16px; font-size: 14px; }
+    .big-score { font-size: 46px; }
   }
 </style>
 </head>
@@ -204,7 +243,13 @@
   </div>
 </div>
 
-<div class="panel" id="panel"><h2>⏳ Загружаем карту мира…</h2></div>
+<div class="panel" id="panel">
+  <div class="panel-handle" id="panel-handle" onclick="togglePanel()">
+    <div class="panel-handle-bar"></div>
+    <div class="panel-handle-title" id="panel-handle-title">🧭 Исследование</div>
+  </div>
+  <div class="panel-content" id="panel-content"><h2>⏳ Загружаем карту мира…</h2></div>
+</div>
 
 <div class="zoom-controls">
   <button onclick="zoomBy(1.6)" title="Приблизить">+</button>
@@ -230,7 +275,6 @@ const LEVELS = {
   oceania: { name: 'Океания',   icon: '🏝️' }
 };
 
-// [название по-русски, столица, код флага]
 const REGION_DATA = {
   europe: {
     "008": ["Албания", "Тирана", "al"], "040": ["Австрия", "Вена", "at"],
@@ -358,6 +402,10 @@ let timerId = null, timeLeft = 0, advanceTimer = null;
 
 const tooltip = document.getElementById('tooltip');
 const panel = document.getElementById('panel');
+const panelContent = document.getElementById('panel-content');
+const panelHandleTitle = document.getElementById('panel-handle-title');
+
+function isMobile() { return window.innerWidth <= 700; }
 
 function featureKey(f) {
   const id = String(f.id ?? '');
@@ -392,6 +440,19 @@ function poolFor(level) {
   return Object.keys(DB).filter(k => featureByKey[k] && (level === 'world' || DB[k].level === level));
 }
 
+// Обновление заголовка свёрнутой плашки на мобильных
+function setHandleTitle(text) {
+  if (panelHandleTitle) panelHandleTitle.textContent = text;
+}
+
+function togglePanel() {
+  panel.classList.toggle('expanded');
+}
+
+function collapsePanel() {
+  if (isMobile()) panel.classList.remove('expanded');
+}
+
 init();
 
 async function init() {
@@ -399,7 +460,7 @@ async function init() {
   try {
     world = await d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
   } catch (e) {
-    panel.innerHTML = '<h2>😢 Не удалось загрузить карту</h2><p>Проверь интернет и обнови страницу.</p>';
+    panelContent.innerHTML = '<h2>😢 Не удалось загрузить карту</h2><p>Проверь интернет и обнови страницу.</p>';
     return;
   }
   const countries = topojson.feature(world, world.objects.countries);
@@ -449,9 +510,14 @@ async function init() {
     .on('zoom', event => viewport.attr('transform', event.transform));
   svg.call(zoom);
 
+  // Глобус: drag с поддержкой touch
   globeDrag = d3.drag()
-    .on('start', () => svg.interrupt())
-    .on('drag', (event) => {
+    .on('start', function(event) {
+      svg.interrupt();
+      if (event.sourceEvent) event.sourceEvent.preventDefault();
+    })
+    .on('drag', function(event) {
+      if (event.sourceEvent) event.sourceEvent.preventDefault();
       const k = 57.2958 / projection.scale();
       const r = projection.rotate();
       const phi = Math.max(-85, Math.min(85, r[1] - event.dy * k));
@@ -587,6 +653,7 @@ function setMode(m) {
   document.getElementById('btn-quiz').classList.toggle('active', m !== 'explore');
   if (m === 'explore') showExplorePrompt();
   if (m === 'setup') renderSetup();
+  collapsePanel();
 }
 
 function showExplorePrompt() {
@@ -594,7 +661,7 @@ function showExplorePrompt() {
   const hint = mapMode === 'globe'
     ? '🌐 Перетаскивай, чтобы вращать глобус · колёсико — масштаб'
     : '🖱️ Колёсико — масштаб · перетаскивание — перемещение';
-  panel.innerHTML = `
+  panelContent.innerHTML = `
     <div class="fade">
       <h2>🧭 Исследование</h2>
       <p>Наводи на страны и кликай, чтобы узнать название, столицу и флаг. Карта сама приблизится к стране.</p>
@@ -602,6 +669,7 @@ function showExplorePrompt() {
       <p class="dim">В базе <b>${n}</b> стран и территорий.</p>
       <button class="btn primary" onclick="setMode('setup')">🎯 Сыграть в викторину</button>
     </div>`;
+  setHandleTitle('🧭 Исследование');
 }
 
 function showCountryCard(key, feature) {
@@ -609,7 +677,7 @@ function showCountryCard(key, feature) {
   const back = `<div class="btn-row"><button class="btn ghost" onclick="showExplorePrompt()">← Назад</button></div>`;
   if (c) {
     const lvl = LEVELS[c.level];
-    panel.innerHTML = `
+    panelContent.innerHTML = `
       <div class="fade">
         ${flagImg(c.flag, 'flag-wrap card-flag')}
         <h2>${c.name}</h2>
@@ -617,14 +685,18 @@ function showCountryCard(key, feature) {
         <p class="capital">🏛️ Столица: <b>${c.capital}</b></p>
         ${back}
       </div>`;
+    setHandleTitle(c.name);
   } else {
-    panel.innerHTML = `
+    const name = (feature.properties && feature.properties.name) || 'Неизвестная территория';
+    panelContent.innerHTML = `
       <div class="fade">
-        <h2>${(feature.properties && feature.properties.name) || 'Неизвестная территория'}</h2>
+        <h2>${name}</h2>
         <p class="dim">Эта территория не входит в базу игры.</p>
         ${back}
       </div>`;
+    setHandleTitle(name);
   }
+  if (isMobile()) panel.classList.add('expanded');
 }
 
 function renderSetup() {
@@ -634,7 +706,7 @@ function renderSetup() {
     </button>`).join('');
   const key = selectedLevel + (selectedBlitz ? '-blitz' : '-classic');
   const rec = loadRecords()[key];
-  panel.innerHTML = `
+  panelContent.innerHTML = `
     <div class="fade">
       <h2>🎯 Викторина</h2>
       <div class="section-label">Уровень</div>
@@ -647,6 +719,8 @@ function renderSetup() {
       <div class="record-line">${rec ? `🏆 Твой рекорд: <b>${rec.score}/10</b> · ${rec.date}` : '🏆 Рекорда пока нет — установи его!'}</div>
       <button class="btn primary big" onclick="startQuiz()">▶ Начать игру</button>
     </div>`;
+  setHandleTitle('🎯 Викторина');
+  if (isMobile()) panel.classList.add('expanded');
 }
 
 function selectLevel(k) { selectedLevel = k; renderSetup(); }
@@ -668,6 +742,7 @@ function startQuiz() {
   document.getElementById('btn-explore').classList.remove('active');
   document.getElementById('btn-quiz').classList.add('active');
   renderQuizQuestion();
+  collapsePanel();
 }
 
 function renderQuizQuestion() {
@@ -680,7 +755,7 @@ function renderQuizQuestion() {
   else if (q.type === 'flag') { title = 'Найди страну по флагу'; target = flagImg(c.flag); }
   else { title = 'Найди страну со столицей'; target = `<div class="q-target">${c.capital}</div>`; }
 
-  panel.innerHTML = `
+  panelContent.innerHTML = `
     <div class="fade">
       <div class="quiz-top">
         <span class="pill">${lvl.icon} ${lvl.name}</span>
@@ -697,6 +772,7 @@ function renderQuizQuestion() {
         <button class="btn ghost" onclick="setMode('setup')">Выйти</button>
       </div>
     </div>`;
+  setHandleTitle(`${title}: ${q.type === 'flag' ? '🚩' : (q.type === 'name' ? c.name : c.capital)}`);
   if (quiz.blitz) startTimer();
 }
 
@@ -777,7 +853,7 @@ function showResults() {
     : pct >= .8 ? 'Отличный результат!'
     : pct >= .5 ? 'Хороший результат, продолжай!'
     : 'Потренируйся ещё — всё получится!';
-  panel.innerHTML = `
+  panelContent.innerHTML = `
     <div class="fade center">
       <h2>🏁 Игра окончена!</h2>
       <div class="big-score">${quiz.score}<span class="big-total">/${total}</span></div>
@@ -789,7 +865,9 @@ function showResults() {
         <button class="btn" onclick="setMode('explore')">🧭 Карта</button>
       </div>
     </div>`;
+  setHandleTitle(`🏁 ${quiz.score}/${total}`);
   resetZoom();
+  if (isMobile()) panel.classList.add('expanded');
 }
 </script>
 </body>
