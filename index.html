@@ -11,68 +11,132 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+  
+  :root {
+    --bg-primary: #070b16;
+    --bg-gradient-1: rgba(139,92,246,.16);
+    --bg-gradient-2: rgba(6,182,212,.12);
+    --text-primary: #eef1ff;
+    --text-secondary: rgba(238,241,255,.8);
+    --text-dim: rgba(238,241,255,.55);
+    --panel-bg: rgba(11,16,32,.72);
+    --panel-border: rgba(255,255,255,.09);
+    --btn-bg: rgba(255,255,255,.06);
+    --btn-border: rgba(255,255,255,.1);
+    --btn-hover: rgba(255,255,255,.12);
+    --accent-1: #8b5cf6;
+    --accent-2: #06b6d4;
+    --ocean-1: #1a4d6e;
+    --ocean-2: #0f2d47;
+    --land-known: #5a8f6a;
+    --land-unknown: #4a6b5a;
+    --land-border: #2d4a3a;
+    --land-highlight: #10b981;
+    --land-highlight-stroke: #34d399;
+  }
+  
+  [data-theme="light"] {
+    --bg-primary: #f0f4f8;
+    --bg-gradient-1: rgba(139,92,246,.08);
+    --bg-gradient-2: rgba(6,182,212,.06);
+    --text-primary: #1a202c;
+    --text-secondary: rgba(26,32,44,.8);
+    --text-dim: rgba(26,32,44,.55);
+    --panel-bg: rgba(255,255,255,.85);
+    --panel-border: rgba(0,0,0,.08);
+    --btn-bg: rgba(0,0,0,.04);
+    --btn-border: rgba(0,0,0,.1);
+    --btn-hover: rgba(0,0,0,.08);
+    --accent-1: #8b5cf6;
+    --accent-2: #06b6d4;
+    --ocean-1: #4a90e2;
+    --ocean-2: #357abd;
+    --land-known: #8bc34a;
+    --land-unknown: #a5d6a7;
+    --land-border: #689f38;
+    --land-highlight: #ff9800;
+    --land-highlight-stroke: #ffb74d;
+  }
+  
   body {
     font-family: 'Manrope', 'Segoe UI', system-ui, sans-serif;
-    color: #eef1ff;
+    color: var(--text-primary);
     background:
-      radial-gradient(1200px 800px at 80% -10%, rgba(139,92,246,.16), transparent 60%),
-      radial-gradient(1000px 700px at 10% 110%, rgba(6,182,212,.12), transparent 60%),
-      #070b16;
+      radial-gradient(1200px 800px at 80% -10%, var(--bg-gradient-1), transparent 60%),
+      radial-gradient(1000px 700px at 10% 110%, var(--bg-gradient-2), transparent 60%),
+      var(--bg-primary);
     touch-action: none;
+    transition: background .3s ease;
   }
   #map {
     position: fixed; inset: 0; width: 100%; height: 100%; display: block;
     touch-action: none;
   }
   #viewport path { vector-effect: non-scaling-stroke; }
-  #countries path { cursor: pointer; transition: filter .15s; }
-  #countries path:hover { filter: brightness(1.4); }
+  #countries path { 
+    cursor: pointer; 
+    transition: fill .3s ease, stroke .3s ease, filter .15s;
+  }
+  #countries path:hover { filter: brightness(1.2); }
+  .country-highlighted {
+    fill: var(--land-highlight) !important;
+    stroke: var(--land-highlight-stroke) !important;
+    stroke-width: 2 !important;
+    filter: drop-shadow(0 0 8px var(--land-highlight-stroke));
+  }
   .flash-correct { fill: #10b981 !important; }
   .flash-wrong { fill: #f43f5e !important; }
 
   .hud { position: fixed; top: 16px; left: 16px; z-index: 10; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
   .logo {
     font-size: 19px; font-weight: 800; letter-spacing: .3px;
-    background: rgba(11,16,32,.7); backdrop-filter: blur(14px);
-    border: 1px solid rgba(255,255,255,.09); padding: 10px 18px; border-radius: 14px;
+    background: var(--panel-bg); backdrop-filter: blur(14px);
+    border: 1px solid var(--panel-border); padding: 10px 18px; border-radius: 14px;
+    display: flex; align-items: center; gap: 10px;
   }
   .logo .grad {
-    background: linear-gradient(90deg, #a78bfa, #22d3ee);
+    background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
+  .theme-toggle {
+    width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--panel-border);
+    background: var(--btn-bg); cursor: pointer; font-size: 18px; transition: .2s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .theme-toggle:hover { background: var(--btn-hover); }
+  
   .modes { display: flex; gap: 8px; }
   .mode-btn {
     padding: 10px 16px; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; transition: .2s;
-    font-family: inherit; border: 1px solid rgba(255,255,255,.1);
-    background: rgba(11,16,32,.7); backdrop-filter: blur(14px); color: rgba(238,241,255,.8);
+    font-family: inherit; border: 1px solid var(--btn-border);
+    background: var(--panel-bg); backdrop-filter: blur(14px); color: var(--text-secondary);
   }
-  .mode-btn:hover { color: #fff; background: rgba(255,255,255,.1); }
+  .mode-btn:hover { color: var(--text-primary); background: var(--btn-hover); }
   .mode-btn.active {
     color: #fff; border-color: transparent;
-    background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+    background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
     box-shadow: 0 6px 20px rgba(139,92,246,.4);
   }
   .views {
     display: flex; padding: 3px; border-radius: 12px;
-    background: rgba(11,16,32,.7); backdrop-filter: blur(14px);
-    border: 1px solid rgba(255,255,255,.09);
+    background: var(--panel-bg); backdrop-filter: blur(14px);
+    border: 1px solid var(--panel-border);
   }
   .view-btn {
-    border: none; background: transparent; color: rgba(238,241,255,.6); cursor: pointer; transition: .2s;
+    border: none; background: transparent; color: var(--text-dim); cursor: pointer; transition: .2s;
     font-family: inherit; font-size: 13px; font-weight: 700; padding: 7px 14px; border-radius: 9px;
   }
-  .view-btn:hover { color: #fff; }
+  .view-btn:hover { color: var(--text-primary); }
   .view-btn.active {
-    background: linear-gradient(135deg, #8b5cf6, #06b6d4); color: #fff;
+    background: linear-gradient(135deg, var(--accent-1), var(--accent-2)); color: #fff;
     box-shadow: 0 4px 14px rgba(139,92,246,.4);
   }
 
-  /* Плашка: десктоп */
   .panel {
     position: fixed; top: 16px; right: 16px; width: 344px; z-index: 10;
-    background: rgba(11,16,32,.72); backdrop-filter: blur(22px) saturate(1.3);
+    background: var(--panel-bg); backdrop-filter: blur(22px) saturate(1.3);
     -webkit-backdrop-filter: blur(22px) saturate(1.3);
-    border: 1px solid rgba(255,255,255,.09); border-radius: 22px; padding: 22px;
+    border: 1px solid var(--panel-border); border-radius: 22px; padding: 22px;
     box-shadow: 0 24px 60px rgba(0,0,0,.5);
     max-height: calc(100vh - 32px); overflow-y: auto;
     transition: transform .35s cubic-bezier(.2,.8,.2,1);
@@ -93,10 +157,10 @@
   .chip {
     display: flex; align-items: center; gap: 7px;
     padding: 9px 14px; border-radius: 999px; font-size: 14px; font-weight: 600; cursor: pointer; transition: .2s;
-    font-family: inherit; border: 1px solid rgba(255,255,255,.12);
-    background: rgba(255,255,255,.05); color: rgba(238,241,255,.85);
+    font-family: inherit; border: 1px solid var(--btn-border);
+    background: var(--btn-bg); color: var(--text-secondary);
   }
-  .chip:hover { background: rgba(255,255,255,.1); }
+  .chip:hover { background: var(--btn-hover); }
   .chip.active {
     background: linear-gradient(135deg, rgba(139,92,246,.9), rgba(6,182,212,.9));
     border-color: transparent; color: #fff; box-shadow: 0 6px 18px rgba(139,92,246,.35);
@@ -104,22 +168,22 @@
   .chip-count { font-size: 11px; opacity: .75; background: rgba(0,0,0,.25); padding: 2px 8px; border-radius: 999px; }
   .record-line {
     font-size: 14px; margin: 18px 0 16px; padding: 11px 14px;
-    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.07); border-radius: 14px;
+    background: var(--btn-bg); border: 1px solid var(--btn-border); border-radius: 14px;
   }
 
   .quiz-top { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
-  .pill { font-size: 12px; font-weight: 700; padding: 5px 11px; border-radius: 999px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.08); }
+  .pill { font-size: 12px; font-weight: 700; padding: 5px 11px; border-radius: 999px; background: var(--btn-bg); border: 1px solid var(--btn-border); }
   .score-pill { background: rgba(250,204,21,.12); border-color: rgba(250,204,21,.25); }
   .timer { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-  .timer-track { flex: 1; height: 8px; border-radius: 999px; background: rgba(255,255,255,.08); overflow: hidden; }
-  .timer-bar { height: 100%; width: 100%; border-radius: 999px; background: linear-gradient(90deg, #8b5cf6, #22d3ee); transition: width .1s linear; }
+  .timer-track { flex: 1; height: 8px; border-radius: 999px; background: var(--btn-bg); overflow: hidden; }
+  .timer-bar { height: 100%; width: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent-1), var(--accent-2)); transition: width .1s linear; }
   .timer-bar.low { background: linear-gradient(90deg, #f43f5e, #fb923c); }
   #timer-num { font-weight: 800; min-width: 26px; text-align: right; font-variant-numeric: tabular-nums; }
 
   .q-title { font-size: 17px; font-weight: 600; opacity: .85; margin-bottom: 4px; }
   .q-target {
     font-size: 30px; font-weight: 800; margin: 6px 0 14px; line-height: 1.25;
-    background: linear-gradient(90deg, #c4b5fd, #67e8f9);
+    background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
   .flag-wrap img { width: 100%; max-width: 250px; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.5); margin: 6px 0 14px; }
@@ -132,20 +196,20 @@
   .btn-row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
   .btn {
     padding: 11px 20px; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; transition: .2s;
-    font-family: inherit; border: 1px solid rgba(255,255,255,.1);
-    background: rgba(255,255,255,.06); color: #eef1ff;
+    font-family: inherit; border: 1px solid var(--btn-border);
+    background: var(--btn-bg); color: var(--text-primary);
   }
-  .btn:hover { background: rgba(255,255,255,.12); transform: translateY(-1px); }
-  .btn.primary { background: linear-gradient(135deg, #8b5cf6, #06b6d4); border: none; box-shadow: 0 8px 24px rgba(139,92,246,.35); }
+  .btn:hover { background: var(--btn-hover); transform: translateY(-1px); }
+  .btn.primary { background: linear-gradient(135deg, var(--accent-1), var(--accent-2)); border: none; box-shadow: 0 8px 24px rgba(139,92,246,.35); color: #fff; }
   .btn.primary:hover { filter: brightness(1.12); box-shadow: 0 10px 28px rgba(139,92,246,.45); }
   .btn.big { width: 100%; padding: 14px; font-size: 16px; }
   .btn.ghost { background: transparent; border-color: transparent; opacity: .7; }
-  .btn.ghost:hover { opacity: 1; background: rgba(255,255,255,.06); }
+  .btn.ghost:hover { opacity: 1; background: var(--btn-hover); }
 
   .center { text-align: center; }
   .big-score {
     font-size: 58px; font-weight: 800; margin: 12px 0 4px;
-    background: linear-gradient(90deg, #a78bfa, #22d3ee);
+    background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
   .big-total { font-size: 30px; }
@@ -160,19 +224,18 @@
   .zoom-controls { position: fixed; bottom: 20px; right: 20px; z-index: 10; display: flex; flex-direction: column; gap: 6px; }
   .zoom-controls button {
     width: 44px; height: 44px; border-radius: 14px; font-size: 20px; font-weight: 700; cursor: pointer; transition: .2s;
-    border: 1px solid rgba(255,255,255,.1); background: rgba(11,16,32,.72);
-    backdrop-filter: blur(14px); color: #eef1ff;
+    border: 1px solid var(--btn-border); background: var(--panel-bg);
+    backdrop-filter: blur(14px); color: var(--text-primary);
   }
-  .zoom-controls button:hover { background: rgba(255,255,255,.12); }
+  .zoom-controls button:hover { background: var(--btn-hover); }
 
   #tooltip {
     position: fixed; display: none; z-index: 30; pointer-events: none; white-space: nowrap;
-    background: rgba(11,16,32,.85); backdrop-filter: blur(10px);
-    border: 1px solid rgba(255,255,255,.12); color: #eef1ff;
+    background: var(--panel-bg); backdrop-filter: blur(10px);
+    border: 1px solid var(--panel-border); color: var(--text-primary);
     padding: 6px 12px; border-radius: 10px; font-size: 13px; font-weight: 600;
   }
 
-  /* ============ МОБИЛЬНАЯ ПЛАШКА ============ */
   .panel-handle {
     display: none;
     width: 100%; padding: 10px 0 6px; cursor: pointer;
@@ -197,7 +260,6 @@
     .zoom-controls button { width: 44px; height: 44px; font-size: 20px; }
     .q-target { font-size: 26px; }
 
-    /* Плашка-шторка снизу */
     .panel {
       top: auto; bottom: 0; left: 0; right: 0; width: 100%;
       max-height: 75vh; padding: 0 18px 18px;
@@ -221,8 +283,8 @@
 <svg id="map" viewBox="0 0 960 500" preserveAspectRatio="xMidYMid meet">
   <defs>
     <radialGradient id="oceanGrad" cx="50%" cy="45%" r="75%">
-      <stop offset="0" stop-color="#1a4d6e"/>
-      <stop offset="1" stop-color="#0f2d47"/>
+      <stop offset="0" class="ocean-stop-1"/>
+      <stop offset="1" class="ocean-stop-2"/>
     </radialGradient>
     <filter id="glow" x="-25%" y="-25%" width="150%" height="150%">
       <feGaussianBlur stdDeviation="7"/>
@@ -232,7 +294,10 @@
 </svg>
 
 <div class="hud">
-  <div class="logo">🌍 Гео<span class="grad">Мастер</span></div>
+  <div class="logo">
+    🌍 Гео<span class="grad">Мастер</span>
+    <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()">🌙</button>
+  </div>
   <div class="modes">
     <button id="btn-explore" class="mode-btn active" onclick="setMode('explore')">🧭 Исследование</button>
     <button id="btn-quiz" class="mode-btn" onclick="setMode('setup')">🎯 Викторина</button>
@@ -385,6 +450,7 @@ for (const [level, list] of Object.entries(REGION_DATA))
 
 const NAME_KEYS = { "Kosovo": "XK" };
 const REC_KEY = 'geomaster-records-v1';
+const THEME_KEY = 'geomaster-theme';
 const TYPES = ['name', 'flag', 'capital'];
 const randType = () => TYPES[Math.floor(Math.random() * TYPES.length)];
 
@@ -399,12 +465,14 @@ let paths = null, svg, viewport, zoom, projection, path;
 let spherePath, graticulePath, haloPath;
 let globeScaleDefault = 220, globeDrag;
 let timerId = null, timeLeft = 0, advanceTimer = null;
+let highlightedCountry = null;
 
 const tooltip = document.getElementById('tooltip');
 const panel = document.getElementById('panel');
 const panelContent = document.getElementById('panel-content');
 const panelHandle = document.getElementById('panel-handle');
 const panelHandleTitle = document.getElementById('panel-handle-title');
+const themeToggle = document.getElementById('theme-toggle');
 
 function isMobile() { return window.innerWidth <= 700; }
 
@@ -453,7 +521,47 @@ function collapsePanel() {
   if (isMobile()) panel.classList.remove('expanded');
 }
 
-// Swipe-to-dismiss для плашки
+// Theme
+function loadTheme() {
+  const saved = localStorage.getItem(THEME_KEY);
+  return saved || 'dark';
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  themeToggle.textContent = theme === 'dark' ? '🌙' : '☀️';
+  updateOceanColors();
+  updateLandColors();
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  const next = current === 'dark' ? 'light' : 'dark';
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next);
+}
+
+function updateOceanColors() {
+  const style = getComputedStyle(document.documentElement);
+  const ocean1 = style.getPropertyValue('--ocean-1').trim();
+  const ocean2 = style.getPropertyValue('--ocean-2').trim();
+  document.querySelector('.ocean-stop-1').setAttribute('stop-color', ocean1);
+  document.querySelector('.ocean-stop-2').setAttribute('stop-color', ocean2);
+}
+
+function updateLandColors() {
+  if (!paths) return;
+  const style = getComputedStyle(document.documentElement);
+  const known = style.getPropertyValue('--land-known').trim();
+  const unknown = style.getPropertyValue('--land-unknown').trim();
+  const border = style.getPropertyValue('--land-border').trim();
+  
+  paths.attr('fill', d => {
+    if (d.__highlighted) return null;
+    return DB[featureKey(d)] ? known : unknown;
+  }).attr('stroke', border);
+}
+
 let touchStartY = 0;
 let touchCurrentY = 0;
 let isSwiping = false;
@@ -489,6 +597,8 @@ panelHandle.addEventListener('click', togglePanel);
 init();
 
 async function init() {
+  applyTheme(loadTheme());
+  
   let world;
   try {
     world = await d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
@@ -525,25 +635,23 @@ async function init() {
     .selectAll('path')
     .data(countries.features)
     .join('path')
-    .attr('fill', d => DB[featureKey(d)] ? '#5a8f6a' : '#4a6b5a')
-    .attr('stroke', '#2d4a3a')
-    .attr('stroke-width', 0.6)
+    .attr('d', path)
     .on('click', (event, d) => {
-      if (mode === 'explore') { showCountryCard(featureKey(d), d); zoomTo(d); }
+      if (mode === 'explore') { highlightAndShow(d); }
       else if (mode === 'quiz') answerCountry(d);
     })
     .on('mousemove', moveTooltip)
     .on('mouseleave', () => tooltip.style.display = 'none');
 
+  updateLandColors();
   redrawAll();
 
   zoom = d3.zoom()
-    .scaleExtent([1, 12])
+    .scaleExtent([1, 25])
     .translateExtent([[0, 0], [W, H]])
     .on('zoom', event => viewport.attr('transform', event.transform));
   svg.call(zoom);
 
-  // Глобус: drag с поддержкой touch, без блокировки клика
   globeDrag = d3.drag()
     .clickDistance(5)
     .on('start', function(event) {
@@ -557,7 +665,6 @@ async function init() {
       redrawAll();
     });
 
-  // Pinch-to-zoom для глобуса
   let touchStartDist = 0;
   let touchStartScale = 0;
 
@@ -565,7 +672,11 @@ async function init() {
     if (event.touches.length === 2) {
       event.preventDefault();
       touchStartDist = getDistance(event.touches[0], event.touches[1]);
-      touchStartScale = projection.scale();
+      if (mapMode === 'globe') {
+        touchStartScale = projection.scale();
+      } else {
+        touchStartScale = d3.zoomTransform(svg.node()).k;
+      }
     }
   });
 
@@ -574,9 +685,16 @@ async function init() {
       event.preventDefault();
       const dist = getDistance(event.touches[0], event.touches[1]);
       const scale = touchStartScale * (dist / touchStartDist);
-      const newScale = Math.max(globeScaleDefault * 0.7, Math.min(globeScaleDefault * 3, scale));
-      projection.scale(newScale);
-      redrawAll();
+      
+      if (mapMode === 'globe') {
+        const newScale = Math.max(globeScaleDefault * 0.7, Math.min(globeScaleDefault * 5, scale));
+        projection.scale(newScale);
+        redrawAll();
+      } else {
+        const newScale = Math.max(1, Math.min(25, scale));
+        const transform = d3.zoomIdentity.scale(newScale);
+        svg.call(zoom.transform, transform);
+      }
     }
   });
 
@@ -588,6 +706,24 @@ async function init() {
 
   ready = true;
   setMode('explore');
+}
+
+function highlightAndShow(d) {
+  const key = featureKey(d);
+  
+  if (highlightedCountry) {
+    highlightedCountry.__highlighted = false;
+    highlightedCountry.classed('country-highlighted', false);
+  }
+  
+  d.__highlighted = true;
+  d3.select(d).classed('country-highlighted', true);
+  highlightedCountry = d3.select(d);
+  
+  setTimeout(() => {
+    showCountryCard(key, d);
+    zoomTo(d);
+  }, 400);
 }
 
 function redrawAll() {
@@ -607,8 +743,6 @@ function setMapMode(m) {
 
   if (m === 'flat') {
     svg.on('.drag', null);
-    svg.on('touchstart.pinch', null);
-    svg.on('touchmove.pinch', null);
     projection = d3.geoNaturalEarth1().fitExtent([[10, 10], [W - 10, H - 10]], { type: 'Sphere' });
     haloPath.style('display', 'none');
     svg.call(zoom);
@@ -640,7 +774,7 @@ function moveTooltip(event, d) {
 function zoomTo(d) {
   if (mapMode === 'globe') { rotateTo(d); return; }
   const [[x0, y0], [x1, y1]] = path.bounds(d);
-  const scale = Math.max(1, Math.min(8, 0.65 / Math.max((x1 - x0) / W, (y1 - y0) / H)));
+  const scale = Math.max(1, Math.min(12, 0.65 / Math.max((x1 - x0) / W, (y1 - y0) / H)));
   const tx = W / 2 - scale * (x0 + x1) / 2;
   const ty = H / 2 - scale * (y0 + y1) / 2;
   svg.transition().duration(800).call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
@@ -660,6 +794,11 @@ function rotateTo(d) {
 
 function resetZoom() {
   if (!ready) return;
+  if (highlightedCountry) {
+    highlightedCountry.__highlighted = false;
+    highlightedCountry.classed('country-highlighted', false);
+    highlightedCountry = null;
+  }
   if (mapMode === 'flat') {
     svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity);
   } else {
@@ -680,7 +819,7 @@ function zoomBy(k) {
     svg.transition().duration(300).call(zoom.scaleBy, k);
   } else {
     const s0 = projection.scale();
-    const s1 = Math.max(globeScaleDefault * 0.7, Math.min(globeScaleDefault * 3, s0 * k));
+    const s1 = Math.max(globeScaleDefault * 0.7, Math.min(globeScaleDefault * 5, s0 * k));
     svg.transition('zoomGlobe').duration(250).tween('scale', () => {
       const i = d3.interpolate(s0, s1);
       return t => { projection.scale(i(t)); redrawAll(); };
