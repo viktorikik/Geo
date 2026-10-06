@@ -4,86 +4,160 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🌍 ГеоМастер — интерактивная карта мира</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌍</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { height: 100%; overflow: hidden; }
   body {
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    background: radial-gradient(ellipse at center, #0d2b47 0%, #071a2e 100%);
-    color: #fff;
+    font-family: 'Manrope', 'Segoe UI', system-ui, sans-serif;
+    color: #eef1ff;
+    background:
+      radial-gradient(1200px 800px at 80% -10%, rgba(139,92,246,.16), transparent 60%),
+      radial-gradient(1000px 700px at 10% 110%, rgba(6,182,212,.12), transparent 60%),
+      #070b16;
   }
-  #map { position: fixed; inset: 0; width: 100%; height: 100%; }
+  #map { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
   #viewport path { vector-effect: non-scaling-stroke; }
   #countries path { cursor: pointer; transition: filter .15s; }
-  #countries path:hover { filter: brightness(1.4); }
-  .flash-correct { fill: #43a047 !important; }
-  .flash-wrong { fill: #e53935 !important; }
+  #countries path:hover { filter: brightness(1.6); }
+  .flash-correct { fill: #10b981 !important; }
+  .flash-wrong { fill: #f43f5e !important; }
 
   .hud { position: fixed; top: 16px; left: 16px; z-index: 10; display: flex; flex-direction: column; gap: 10px; }
   .logo {
-    font-size: 20px; font-weight: 800; letter-spacing: .5px; width: max-content;
-    background: rgba(10,25,45,.75); backdrop-filter: blur(10px);
-    border: 1px solid rgba(255,255,255,.12); padding: 10px 16px; border-radius: 12px;
+    font-size: 19px; font-weight: 800; width: max-content; letter-spacing: .3px;
+    background: rgba(11,16,32,.7); backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,.09); padding: 10px 18px; border-radius: 14px;
+  }
+  .logo .grad {
+    background: linear-gradient(90deg, #a78bfa, #22d3ee);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
   }
   .modes { display: flex; gap: 8px; }
   .mode-btn {
-    padding: 10px 14px; border-radius: 10px; font-size: 14px; cursor: pointer; transition: .2s;
-    border: 1px solid rgba(255,255,255,.15); background: rgba(10,25,45,.75);
-    backdrop-filter: blur(10px); color: #fff;
+    padding: 10px 16px; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; transition: .2s;
+    font-family: inherit; border: 1px solid rgba(255,255,255,.1);
+    background: rgba(11,16,32,.7); backdrop-filter: blur(14px); color: rgba(238,241,255,.8);
   }
-  .mode-btn:hover { background: rgba(255,255,255,.15); }
-  .mode-btn.active { background: linear-gradient(135deg, #ff9800, #ff5722); border-color: transparent; font-weight: 700; }
+  .mode-btn:hover { color: #fff; background: rgba(255,255,255,.1); }
+  .mode-btn.active {
+    color: #fff; border-color: transparent;
+    background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+    box-shadow: 0 6px 20px rgba(139,92,246,.4);
+  }
 
   .panel {
-    position: fixed; top: 16px; right: 16px; width: 330px; z-index: 10;
-    background: rgba(10,25,45,.85); backdrop-filter: blur(14px);
-    border: 1px solid rgba(255,255,255,.12); border-radius: 16px; padding: 22px;
-    box-shadow: 0 16px 40px rgba(0,0,0,.4); max-height: calc(100vh - 32px); overflow-y: auto;
+    position: fixed; top: 16px; right: 16px; width: 344px; z-index: 10;
+    background: rgba(11,16,32,.72); backdrop-filter: blur(22px) saturate(1.3);
+    -webkit-backdrop-filter: blur(22px) saturate(1.3);
+    border: 1px solid rgba(255,255,255,.09); border-radius: 22px; padding: 22px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.5);
+    max-height: calc(100vh - 32px); overflow-y: auto;
   }
-  .panel h2 { font-size: 22px; margin-bottom: 10px; }
-  .panel p { line-height: 1.5; margin-bottom: 8px; }
-  .dim { opacity: .6; font-size: 14px; }
+  .panel::-webkit-scrollbar { width: 6px; }
+  .panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 99px; }
+  .panel h2 { font-size: 22px; font-weight: 800; margin-bottom: 10px; }
+  .panel p { line-height: 1.55; margin-bottom: 10px; font-size: 15px; }
+  .dim { opacity: .55; font-size: 13.5px; }
   .en-name { opacity: .5; font-size: 13px; }
-  .capital { font-size: 17px; margin-top: 6px; }
+  .capital { font-size: 17px; margin-top: 4px; }
 
-  .quiz-top { display: flex; justify-content: space-between; opacity: .85; font-size: 14px; margin-bottom: 14px; }
-  .q-title { font-size: 18px; opacity: .9; margin-bottom: 6px; }
-  .q-target { font-size: 30px; font-weight: 800; color: #ffb74d; margin: 10px 0 16px; line-height: 1.2; }
-  .q-flag img, .card-flag img { width: 100%; max-width: 250px; border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.45); margin: 10px 0 14px; }
+  .fade { animation: fadeUp .35s ease both; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+  .section-label { font-size: 12px; text-transform: uppercase; letter-spacing: .12em; opacity: .5; margin: 16px 0 8px; font-weight: 700; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    display: flex; align-items: center; gap: 7px;
+    padding: 9px 14px; border-radius: 999px; font-size: 14px; font-weight: 600; cursor: pointer; transition: .2s;
+    font-family: inherit; border: 1px solid rgba(255,255,255,.12);
+    background: rgba(255,255,255,.05); color: rgba(238,241,255,.85);
+  }
+  .chip:hover { background: rgba(255,255,255,.1); }
+  .chip.active {
+    background: linear-gradient(135deg, rgba(139,92,246,.9), rgba(6,182,212,.9));
+    border-color: transparent; color: #fff; box-shadow: 0 6px 18px rgba(139,92,246,.35);
+  }
+  .chip-count { font-size: 11px; opacity: .75; background: rgba(0,0,0,.25); padding: 2px 8px; border-radius: 999px; }
+  .record-line {
+    font-size: 14px; margin: 18px 0 16px; padding: 11px 14px;
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.07); border-radius: 14px;
+  }
+
+  .quiz-top { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .pill { font-size: 12px; font-weight: 700; padding: 5px 11px; border-radius: 999px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.08); }
+  .score-pill { background: rgba(250,204,21,.12); border-color: rgba(250,204,21,.25); }
+  .timer { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .timer-track { flex: 1; height: 8px; border-radius: 999px; background: rgba(255,255,255,.08); overflow: hidden; }
+  .timer-bar { height: 100%; width: 100%; border-radius: 999px; background: linear-gradient(90deg, #8b5cf6, #22d3ee); transition: width .1s linear; }
+  .timer-bar.low { background: linear-gradient(90deg, #f43f5e, #fb923c); }
+  #timer-num { font-weight: 800; min-width: 26px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  .q-title { font-size: 17px; font-weight: 600; opacity: .85; margin-bottom: 4px; }
+  .q-target {
+    font-size: 30px; font-weight: 800; margin: 6px 0 14px; line-height: 1.25;
+    background: linear-gradient(90deg, #c4b5fd, #67e8f9);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .flag-wrap img { width: 100%; max-width: 250px; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.5); margin: 6px 0 14px; }
   .card-flag img { max-width: none; margin-top: 0; }
-  .q-emoji { font-size: 70px; margin: 10px 0 16px; }
-  #q-feedback { min-height: 24px; font-weight: 600; margin: 10px 0; }
-  #q-feedback.good { color: #81c784; }
-  #q-feedback.bad { color: #ef9a9a; }
-  .big-score { font-size: 54px; font-weight: 800; margin: 16px 0; text-align: center; }
+  .q-emoji { font-size: 64px; margin: 6px 0 14px; }
+  #q-feedback { min-height: 22px; font-weight: 700; font-size: 15px; margin: 8px 0 4px; }
+  #q-feedback.good { color: #34d399; }
+  #q-feedback.bad { color: #fb7185; }
 
   .btn-row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
   .btn {
-    padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer; font-size: 15px;
-    color: #fff; background: rgba(255,255,255,.12); transition: .2s;
+    padding: 11px 20px; border-radius: 12px; font-size: 15px; font-weight: 700; cursor: pointer; transition: .2s;
+    font-family: inherit; border: 1px solid rgba(255,255,255,.1);
+    background: rgba(255,255,255,.06); color: #eef1ff;
   }
-  .btn.primary { background: linear-gradient(135deg, #ff9800, #ff5722); font-weight: 700; }
-  .btn:hover { transform: translateY(-2px); filter: brightness(1.1); }
-  .hidden { display: none !important; }
+  .btn:hover { background: rgba(255,255,255,.12); transform: translateY(-1px); }
+  .btn.primary { background: linear-gradient(135deg, #8b5cf6, #06b6d4); border: none; box-shadow: 0 8px 24px rgba(139,92,246,.35); }
+  .btn.primary:hover { filter: brightness(1.12); box-shadow: 0 10px 28px rgba(139,92,246,.45); }
+  .btn.big { width: 100%; padding: 14px; font-size: 16px; }
+  .btn.ghost { background: transparent; border-color: transparent; opacity: .7; }
+  .btn.ghost:hover { opacity: 1; background: rgba(255,255,255,.06); }
+
+  .center { text-align: center; }
+  .big-score {
+    font-size: 58px; font-weight: 800; margin: 12px 0 4px;
+    background: linear-gradient(90deg, #a78bfa, #22d3ee);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .big-total { font-size: 30px; }
+  .new-record {
+    display: inline-block; padding: 8px 18px; border-radius: 999px; font-weight: 800; margin: 8px 0;
+    background: linear-gradient(135deg, rgba(250,204,21,.16), rgba(251,146,60,.16));
+    border: 1px solid rgba(250,204,21,.4); color: #fde68a;
+    animation: pulse 1.3s ease infinite;
+  }
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
 
   .zoom-controls { position: fixed; bottom: 20px; right: 20px; z-index: 10; display: flex; flex-direction: column; gap: 6px; }
   .zoom-controls button {
-    width: 42px; height: 42px; border-radius: 10px; font-size: 20px; cursor: pointer; transition: .2s;
-    border: 1px solid rgba(255,255,255,.15); background: rgba(10,25,45,.8); backdrop-filter: blur(10px); color: #fff;
+    width: 44px; height: 44px; border-radius: 14px; font-size: 20px; font-weight: 700; cursor: pointer; transition: .2s;
+    border: 1px solid rgba(255,255,255,.1); background: rgba(11,16,32,.72);
+    backdrop-filter: blur(14px); color: #eef1ff;
   }
-  .zoom-controls button:hover { background: rgba(255,255,255,.15); }
+  .zoom-controls button:hover { background: rgba(255,255,255,.12); }
 
   #tooltip {
-    position: fixed; display: none; z-index: 20; pointer-events: none; white-space: nowrap;
-    background: rgba(0,0,0,.82); padding: 5px 10px; border-radius: 6px; font-size: 13px;
+    position: fixed; display: none; z-index: 30; pointer-events: none; white-space: nowrap;
+    background: rgba(11,16,32,.85); backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,.12); color: #eef1ff;
+    padding: 6px 12px; border-radius: 10px; font-size: 13px; font-weight: 600;
   }
 
   @media (max-width: 700px) {
-    .panel { top: auto; bottom: 12px; left: 12px; right: 12px; width: auto; max-height: 42vh; padding: 16px; }
+    .panel { top: auto; bottom: 12px; left: 12px; right: 12px; width: auto; max-height: 44vh; padding: 18px; }
     .hud { top: 10px; left: 10px; }
-    .logo { font-size: 15px; padding: 8px 12px; }
-    .mode-btn { padding: 8px 10px; font-size: 13px; }
-    .zoom-controls { bottom: auto; top: 45%; right: 10px; }
+    .logo { font-size: 15px; padding: 8px 14px; }
+    .mode-btn { padding: 8px 12px; font-size: 13px; }
+    .zoom-controls { bottom: auto; top: 42%; right: 10px; }
     .q-target { font-size: 24px; }
   }
 </style>
@@ -92,19 +166,19 @@
 
 <svg id="map" viewBox="0 0 960 500" preserveAspectRatio="xMidYMid meet">
   <defs>
-    <linearGradient id="oceanGrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#1b4a6b"/>
-      <stop offset="1" stop-color="#0e2f4c"/>
-    </linearGradient>
+    <radialGradient id="oceanGrad" cx="50%" cy="45%" r="75%">
+      <stop offset="0" stop-color="#10233f"/>
+      <stop offset="1" stop-color="#060b16"/>
+    </radialGradient>
   </defs>
   <g id="viewport"></g>
 </svg>
 
 <div class="hud">
-  <div class="logo">🌍 ГеоМастер</div>
+  <div class="logo">🌍 Гео<span class="grad">Мастер</span></div>
   <div class="modes">
     <button id="btn-explore" class="mode-btn active" onclick="setMode('explore')">🧭 Исследование</button>
-    <button id="btn-quiz" class="mode-btn" onclick="startQuiz()">🎯 Викторина</button>
+    <button id="btn-quiz" class="mode-btn" onclick="setMode('setup')">🎯 Викторина</button>
   </div>
 </div>
 
@@ -113,7 +187,7 @@
 <div class="zoom-controls">
   <button onclick="zoomBy(1.6)" title="Приблизить">+</button>
   <button onclick="zoomBy(1/1.6)" title="Отдалить">−</button>
-  <button onclick="resetZoom()" title="Показать весь мир">⌂</button>
+  <button onclick="resetZoom()" title="Весь мир">⌂</button>
 </div>
 
 <div id="tooltip"></div>
@@ -122,60 +196,149 @@
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
 <script>
 const W = 960, H = 500;
+const QUESTION_TIME = 15;
 
-// База стран: ключ = числовой ISO-код страны на карте
-// [название по-русски, столица, код флага]
-const DB = {
-  "004": ["Афганистан", "Кабул", "af"], "012": ["Алжир", "Алжир", "dz"],
-  "032": ["Аргентина", "Буэнос-Айрес", "ar"], "036": ["Австралия", "Канберра", "au"],
-  "040": ["Австрия", "Вена", "at"], "050": ["Бангладеш", "Дакка", "bd"],
-  "056": ["Бельгия", "Брюссель", "be"], "068": ["Боливия", "Сукре", "bo"],
-  "076": ["Бразилия", "Бразилиа", "br"], "100": ["Болгария", "София", "bg"],
-  "124": ["Канада", "Оттава", "ca"], "152": ["Чили", "Сантьяго", "cl"],
-  "156": ["Китай", "Пекин", "cn"], "170": ["Колумбия", "Богота", "co"],
-  "180": ["ДР Конго", "Киншаса", "cd"], "192": ["Куба", "Гавана", "cu"],
-  "203": ["Чехия", "Прага", "cz"], "208": ["Дания", "Копенгаген", "dk"],
-  "218": ["Эквадор", "Кито", "ec"], "231": ["Эфиопия", "Аддис-Абеба", "et"],
-  "246": ["Финляндия", "Хельсинки", "fi"], "250": ["Франция", "Париж", "fr"],
-  "276": ["Германия", "Берлин", "de"], "288": ["Гана", "Аккра", "gh"],
-  "300": ["Греция", "Афины", "gr"], "348": ["Венгрия", "Будапешт", "hu"],
-  "352": ["Исландия", "Рейкьявик", "is"], "356": ["Индия", "Нью-Дели", "in"],
-  "360": ["Индонезия", "Джакарта", "id"], "364": ["Иран", "Тегеран", "ir"],
-  "368": ["Ирак", "Багдад", "iq"], "372": ["Ирландия", "Дублин", "ie"],
-  "380": ["Италия", "Рим", "it"], "392": ["Япония", "Токио", "jp"],
-  "400": ["Иордания", "Амман", "jo"], "404": ["Кения", "Найроби", "ke"],
-  "434": ["Ливия", "Триполи", "ly"], "458": ["Малайзия", "Куала-Лумпур", "my"],
-  "466": ["Мали", "Бамако", "ml"], "484": ["Мексика", "Мехико", "mx"],
-  "496": ["Монголия", "Улан-Батор", "mn"], "504": ["Марокко", "Рабат", "ma"],
-  "528": ["Нидерланды", "Амстердам", "nl"], "554": ["Новая Зеландия", "Веллингтон", "nz"],
-  "566": ["Нигерия", "Абуджа", "ng"], "578": ["Норвегия", "Осло", "no"],
-  "586": ["Пакистан", "Исламабад", "pk"], "600": ["Парагвай", "Асунсьон", "py"],
-  "604": ["Перу", "Лима", "pe"], "608": ["Филиппины", "Манила", "ph"],
-  "616": ["Польша", "Варшава", "pl"], "620": ["Португалия", "Лиссабон", "pt"],
-  "642": ["Румыния", "Бухарест", "ro"], "643": ["Россия", "Москва", "ru"],
-  "682": ["Саудовская Аравия", "Эр-Рияд", "sa"], "688": ["Сербия", "Белград", "rs"],
-  "703": ["Словакия", "Братислава", "sk"], "704": ["Вьетнам", "Ханой", "vn"],
-  "710": ["ЮАР", "Претория", "za"], "724": ["Испания", "Мадрид", "es"],
-  "752": ["Швеция", "Стокгольм", "se"], "756": ["Швейцария", "Берн", "ch"],
-  "764": ["Таиланд", "Бангкок", "th"], "788": ["Тунис", "Тунис", "tn"],
-  "792": ["Турция", "Анкара", "tr"], "800": ["Уганда", "Кампала", "ug"],
-  "804": ["Украина", "Киев", "ua"], "807": ["Северная Македония", "Скопье", "mk"],
-  "818": ["Египет", "Каир", "eg"], "826": ["Великобритания", "Лондон", "gb"],
-  "840": ["США", "Вашингтон", "us"], "858": ["Уругвай", "Монтевидео", "uy"],
-  "860": ["Узбекистан", "Ташкент", "uz"], "862": ["Венесуэла", "Каракас", "ve"]
+const LEVELS = {
+  world:   { name: 'Весь мир',  icon: '🌍' },
+  europe:  { name: 'Европа',    icon: '🏰' },
+  asia:    { name: 'Азия',      icon: '🏮' },
+  africa:  { name: 'Африка',    icon: '🦁' },
+  america: { name: 'Америка',   icon: '🗽' },
+  oceania: { name: 'Океания',   icon: '🏝️' }
 };
 
-const normId = id => String(id ?? '').padStart(3, '0');
-const knownIds = Object.keys(DB);
+// [название по-русски, столица, код флага]
+const REGION_DATA = {
+  europe: {
+    "008": ["Албания", "Тирана", "al"], "040": ["Австрия", "Вена", "at"],
+    "056": ["Бельгия", "Брюссель", "be"], "070": ["Босния и Герцеговина", "Сараево", "ba"],
+    "100": ["Болгария", "София", "bg"], "112": ["Беларусь", "Минск", "by"],
+    "191": ["Хорватия", "Загреб", "hr"], "196": ["Кипр", "Никосия", "cy"],
+    "203": ["Чехия", "Прага", "cz"], "208": ["Дания", "Копенгаген", "dk"],
+    "233": ["Эстония", "Таллин", "ee"], "246": ["Финляндия", "Хельсинки", "fi"],
+    "250": ["Франция", "Париж", "fr"], "276": ["Германия", "Берлин", "de"],
+    "300": ["Греция", "Афины", "gr"], "348": ["Венгрия", "Будапешт", "hu"],
+    "352": ["Исландия", "Рейкьявик", "is"], "372": ["Ирландия", "Дублин", "ie"],
+    "380": ["Италия", "Рим", "it"], "428": ["Латвия", "Рига", "lv"],
+    "440": ["Литва", "Вильнюс", "lt"], "442": ["Люксембург", "Люксембург", "lu"],
+    "498": ["Молдавия", "Кишинёв", "md"], "499": ["Черногория", "Подгорица", "me"],
+    "528": ["Нидерланды", "Амстердам", "nl"], "578": ["Норвегия", "Осло", "no"],
+    "616": ["Польша", "Варшава", "pl"], "620": ["Португалия", "Лиссабон", "pt"],
+    "642": ["Румыния", "Бухарест", "ro"], "643": ["Россия", "Москва", "ru"],
+    "688": ["Сербия", "Белград", "rs"], "703": ["Словакия", "Братислава", "sk"],
+    "705": ["Словения", "Любляна", "si"], "724": ["Испания", "Мадрид", "es"],
+    "752": ["Швеция", "Стокгольм", "se"], "756": ["Швейцария", "Берн", "ch"],
+    "804": ["Украина", "Киев", "ua"], "807": ["Северная Македония", "Скопье", "mk"],
+    "826": ["Великобритания", "Лондон", "gb"], "XK": ["Косово", "Приштина", "xk"]
+  },
+  asia: {
+    "004": ["Афганистан", "Кабул", "af"], "031": ["Азербайджан", "Баку", "az"],
+    "048": ["Бахрейн", "Манама", "bh"], "050": ["Бангладеш", "Дакка", "bd"],
+    "051": ["Армения", "Ереван", "am"], "064": ["Бутан", "Тхимпху", "bt"],
+    "096": ["Бруней", "Бандар-Сери-Бегаван", "bn"], "104": ["Мьянма", "Непьидо", "mm"],
+    "116": ["Камбоджа", "Пномпень", "kh"], "156": ["Китай", "Пекин", "cn"],
+    "268": ["Грузия", "Тбилиси", "ge"], "356": ["Индия", "Нью-Дели", "in"],
+    "360": ["Индонезия", "Джакарта", "id"], "364": ["Иран", "Тегеран", "ir"],
+    "368": ["Ирак", "Багдад", "iq"], "376": ["Израиль", "Иерусалим", "il"],
+    "392": ["Япония", "Токио", "jp"], "398": ["Казахстан", "Астана", "kz"],
+    "400": ["Иордания", "Амман", "jo"], "408": ["Северная Корея", "Пхеньян", "kp"],
+    "410": ["Южная Корея", "Сеул", "kr"], "414": ["Кувейт", "Эль-Кувейт", "kw"],
+    "417": ["Кыргызстан", "Бишкек", "kg"], "418": ["Лаос", "Вьентьян", "la"],
+    "422": ["Ливан", "Бейрут", "lb"], "458": ["Малайзия", "Куала-Лумпур", "my"],
+    "496": ["Монголия", "Улан-Батор", "mn"], "512": ["Оман", "Маскат", "om"],
+    "524": ["Непал", "Катманду", "np"], "586": ["Пакистан", "Исламабад", "pk"],
+    "608": ["Филиппины", "Манила", "ph"], "634": ["Катар", "Доха", "qa"],
+    "682": ["Саудовская Аравия", "Эр-Рияд", "sa"], "702": ["Сингапур", "Сингапур", "sg"],
+    "144": ["Шри-Ланка", "Коломбо", "lk"], "760": ["Сирия", "Дамаск", "sy"],
+    "762": ["Таджикистан", "Душанбе", "tj"], "764": ["Таиланд", "Бангкок", "th"],
+    "626": ["Восточный Тимор", "Дили", "tl"], "792": ["Турция", "Анкара", "tr"],
+    "795": ["Туркменистан", "Ашхабад", "tm"], "784": ["ОАЭ", "Абу-Даби", "ae"],
+    "860": ["Узбекистан", "Ташкент", "uz"], "704": ["Вьетнам", "Ханой", "vn"],
+    "887": ["Йемен", "Сана", "ye"]
+  },
+  africa: {
+    "012": ["Алжир", "Алжир", "dz"], "024": ["Ангола", "Луанда", "ao"],
+    "204": ["Бенин", "Порто-Ново", "bj"], "072": ["Ботсвана", "Габороне", "bw"],
+    "854": ["Буркина-Фасо", "Уагадугу", "bf"], "108": ["Бурунди", "Гитега", "bi"],
+    "132": ["Кабо-Верде", "Прая", "cv"], "120": ["Камерун", "Яунде", "cm"],
+    "140": ["ЦАР", "Банги", "cf"], "148": ["Чад", "Нджамена", "td"],
+    "178": ["Республика Конго", "Браззавиль", "cg"], "180": ["ДР Конго", "Киншаса", "cd"],
+    "262": ["Джибути", "Джибути", "dj"], "818": ["Египет", "Каир", "eg"],
+    "226": ["Экваториальная Гвинея", "Малабо", "gq"], "232": ["Эритрея", "Асмэра", "er"],
+    "748": ["Эсватини", "Мбабане", "sz"], "231": ["Эфиопия", "Аддис-Абеба", "et"],
+    "266": ["Габон", "Либревиль", "ga"], "270": ["Гамбия", "Банжул", "gm"],
+    "288": ["Гана", "Аккра", "gh"], "324": ["Гвинея", "Конакри", "gn"],
+    "624": ["Гвинея-Бисау", "Бисау", "gw"], "384": ["Кот-д'Ивуар", "Ямусукро", "ci"],
+    "404": ["Кения", "Найроби", "ke"], "426": ["Лесото", "Масеру", "ls"],
+    "430": ["Либерия", "Монровия", "lr"], "434": ["Ливия", "Триполи", "ly"],
+    "450": ["Мадагаскар", "Антананариву", "mg"], "454": ["Малави", "Лилонгве", "mw"],
+    "466": ["Мали", "Бамако", "ml"], "478": ["Мавритания", "Нуакшот", "mr"],
+    "504": ["Марокко", "Рабат", "ma"], "508": ["Мозамбик", "Мапуту", "mz"],
+    "516": ["Намибия", "Виндхук", "na"], "562": ["Нигер", "Ниамей", "ne"],
+    "566": ["Нигерия", "Абуджа", "ng"], "646": ["Руанда", "Кигали", "rw"],
+    "686": ["Сенегал", "Дакар", "sn"], "694": ["Сьерра-Леоне", "Фритаун", "sl"],
+    "706": ["Сомали", "Могадишо", "so"], "710": ["ЮАР", "Претория", "za"],
+    "728": ["Южный Судан", "Джуба", "ss"], "729": ["Судан", "Хартум", "sd"],
+    "834": ["Танзания", "Додома", "tz"], "768": ["Того", "Ломе", "tg"],
+    "788": ["Тунис", "Тунис", "tn"], "800": ["Уганда", "Кампала", "ug"],
+    "894": ["Замбия", "Лусака", "zm"], "716": ["Зимбабве", "Хараре", "zw"]
+  },
+  america: {
+    "032": ["Аргентина", "Буэнос-Айрес", "ar"], "044": ["Багамы", "Нассау", "bs"],
+    "052": ["Барбадос", "Бриджтаун", "bb"], "084": ["Белиз", "Бельмопан", "bz"],
+    "068": ["Боливия", "Сукре", "bo"], "076": ["Бразилия", "Бразилиа", "br"],
+    "124": ["Канада", "Оттава", "ca"], "152": ["Чили", "Сантьяго", "cl"],
+    "170": ["Колумбия", "Богота", "co"], "188": ["Коста-Рика", "Сан-Хосе", "cr"],
+    "192": ["Куба", "Гавана", "cu"], "214": ["Доминиканская Республика", "Санто-Доминго", "do"],
+    "218": ["Эквадор", "Кито", "ec"], "222": ["Сальвадор", "Сан-Сальвадор", "sv"],
+    "304": ["Гренландия", "Нуук", "gl"], "320": ["Гватемала", "Гватемала", "gt"],
+    "328": ["Гайана", "Джорджтаун", "gy"], "332": ["Гаити", "Порт-о-Пренс", "ht"],
+    "340": ["Гондурас", "Тегусигальпа", "hn"], "388": ["Ямайка", "Кингстон", "jm"],
+    "484": ["Мексика", "Мехико", "mx"], "558": ["Никарагуа", "Манагуа", "ni"],
+    "591": ["Панама", "Панама", "pa"], "600": ["Парагвай", "Асунсьон", "py"],
+    "604": ["Перу", "Лима", "pe"], "740": ["Суринам", "Парамарибо", "sr"],
+    "780": ["Тринидад и Тобаго", "Порт-оф-Спейн", "tt"], "840": ["США", "Вашингтон", "us"],
+    "858": ["Уругвай", "Монтевидео", "uy"], "862": ["Венесуэла", "Каракас", "ve"]
+  },
+  oceania: {
+    "036": ["Австралия", "Канберра", "au"], "090": ["Соломоновы Острова", "Хониара", "sb"],
+    "242": ["Фиджи", "Сува", "fj"], "296": ["Кирибати", "Южная Тарава", "ki"],
+    "520": ["Науру", "Ярен", "nr"], "548": ["Вануату", "Порт-Вила", "vu"],
+    "554": ["Новая Зеландия", "Веллингтон", "nz"], "583": ["Микронезия", "Паликир", "fm"],
+    "584": ["Маршалловы Острова", "Маджуро", "mh"], "585": ["Палау", "Нгерулмуд", "pw"],
+    "598": ["Папуа — Новая Гвинея", "Порт-Морсби", "pg"], "776": ["Тонга", "Нукуалофа", "to"],
+    "798": ["Тувалу", "Фунафути", "tv"], "882": ["Самоа", "Апиа", "ws"]
+  }
+};
 
+const DB = {};
+for (const [level, list] of Object.entries(REGION_DATA))
+  for (const [k, v] of Object.entries(list))
+    DB[k] = { name: v[0], capital: v[1], flag: v[2], level };
+
+const NAME_KEYS = { "Kosovo": "XK" };
+const REC_KEY = 'geomaster-records-v1';
+const TYPES = ['name', 'flag', 'capital'];
+const randType = () => TYPES[Math.floor(Math.random() * TYPES.length)];
+
+let ready = false;
 let mode = 'explore';
 let quiz = null;
-let featureById = {};
-let paths = null;
-let svg, viewport, zoom, path;
+let selectedLevel = 'world';
+let selectedBlitz = false;
+let featureByKey = {};
+let paths = null, svg, viewport, zoom, path;
+let timerId = null, timeLeft = 0, advanceTimer = null;
 
 const tooltip = document.getElementById('tooltip');
 const panel = document.getElementById('panel');
+
+function featureKey(f) {
+  const id = String(f.id ?? '');
+  if (!id) return null;
+  if (id.startsWith('-')) return NAME_KEYS[f.properties && f.properties.name] || null;
+  return id.padStart(3, '0');
+}
 
 function shuffle(arr) {
   const a = [...arr];
@@ -190,6 +353,19 @@ function flagEmoji(code) {
   return code.toUpperCase().replace(/./g, ch => String.fromCodePoint(127397 + ch.charCodeAt(0)));
 }
 
+function flagImg(code, cls = 'flag-wrap') {
+  return `<div class="${cls}"><img src="https://flagcdn.com/w320/${code}.png" alt="флаг"
+    onerror="this.outerHTML='<div class=q-emoji>${flagEmoji(code)}</div>'"></div>`;
+}
+
+function loadRecords() { try { return JSON.parse(localStorage.getItem(REC_KEY)) || {}; } catch (e) { return {}; } }
+function saveRecords(r) { try { localStorage.setItem(REC_KEY, JSON.stringify(r)); } catch (e) {} }
+function recordKey() { return quiz.level + (quiz.blitz ? '-blitz' : '-classic'); }
+
+function poolFor(level) {
+  return Object.keys(DB).filter(k => featureByKey[k] && (level === 'world' || DB[k].level === level));
+}
+
 init();
 
 async function init() {
@@ -201,74 +377,54 @@ async function init() {
     return;
   }
   const countries = topojson.feature(world, world.objects.countries);
-  countries.features.forEach(f => featureById[normId(f.id)] = f);
+  countries.features.forEach(f => { const k = featureKey(f); if (k) featureByKey[k] = f; });
 
   svg = d3.select('#map');
   viewport = d3.select('#viewport');
-  const projection = d3.geoNaturalEarth1().fitExtent([[8, 8], [W - 8, H - 8]], { type: 'Sphere' });
+  const projection = d3.geoNaturalEarth1().fitExtent([[10, 10], [W - 10, H - 10]], { type: 'Sphere' });
   path = d3.geoPath(projection);
 
-  // Океан
   viewport.append('path')
     .attr('d', path({ type: 'Sphere' }))
     .attr('fill', 'url(#oceanGrad)')
-    .attr('stroke', 'rgba(255,255,255,.18)')
+    .attr('stroke', 'rgba(255,255,255,.12)')
     .attr('stroke-width', 1);
 
-  // Сетка координат
   viewport.append('path')
     .attr('d', path(d3.geoGraticule10()))
     .attr('fill', 'none')
-    .attr('stroke', 'rgba(255,255,255,.07)')
+    .attr('stroke', 'rgba(255,255,255,.045)')
     .attr('stroke-width', 0.5);
 
-  // Страны
   paths = viewport.append('g').attr('id', 'countries')
     .selectAll('path')
     .data(countries.features)
     .join('path')
     .attr('d', path)
-    .attr('fill', d => DB[normId(d.id)] ? '#4e8d7c' : '#32465c')
-    .attr('stroke', '#0d2438')
-    .attr('stroke-width', 0.5)
-    .on('click', (event, d) => onCountryClick(d))
+    .attr('fill', d => DB[featureKey(d)] ? '#1e2a4d' : '#131b31')
+    .attr('stroke', '#070d1c')
+    .attr('stroke-width', 0.6)
+    .on('click', (event, d) => {
+      if (mode === 'explore') { showCountryCard(featureKey(d), d); zoomTo(d); }
+      else if (mode === 'quiz') answerCountry(d);
+    })
     .on('mousemove', moveTooltip)
     .on('mouseleave', () => tooltip.style.display = 'none');
 
-  // Зум и перетаскивание
   zoom = d3.zoom()
     .scaleExtent([1, 12])
     .translateExtent([[0, 0], [W, H]])
     .on('zoom', event => viewport.attr('transform', event.transform));
   svg.call(zoom);
 
+  ready = true;
   setMode('explore');
-}
-
-function onCountryClick(d) {
-  const id = normId(d.id);
-  if (mode === 'explore') {
-    showCountryCard(id, d.properties && d.properties.name);
-    zoomTo(d);
-    return;
-  }
-  if (mode === 'quiz' && quiz && !quiz.answered) {
-    quiz.answered = true;
-    const q = quiz.questions[quiz.current];
-    const correct = id === q.id;
-    paths.filter(p => p === d).classed(correct ? 'flash-correct' : 'flash-wrong', true);
-    const correctFeature = featureById[q.id];
-    if (!correct && correctFeature) paths.filter(p => p === correctFeature).classed('flash-correct', true);
-    if (correct) quiz.score++;
-    showQuizFeedback(correct, q);
-    if (correctFeature) zoomTo(correctFeature);
-  }
 }
 
 function moveTooltip(event, d) {
   if (mode !== 'explore') { tooltip.style.display = 'none'; return; }
-  const c = DB[normId(d.id)];
-  tooltip.textContent = c ? c[0] : (d.properties && d.properties.name) || '';
+  const c = DB[featureKey(d)];
+  tooltip.textContent = c ? c.name : (d.properties && d.properties.name) || '';
   tooltip.style.display = 'block';
   tooltip.style.left = (event.clientX + 14) + 'px';
   tooltip.style.top = (event.clientY + 16) + 'px';
@@ -282,138 +438,221 @@ function zoomTo(d) {
   svg.transition().duration(800).call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
 }
 
-function resetZoom() {
-  if (svg && zoom) svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity);
-}
-
-function zoomBy(k) {
-  if (svg && zoom) svg.transition().duration(300).call(zoom.scaleBy, k);
-}
-
-function clearFlash() {
-  if (paths) paths.classed('flash-correct', false).classed('flash-wrong', false);
-}
+function resetZoom() { if (svg && zoom) svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity); }
+function zoomBy(k) { if (svg && zoom) svg.transition().duration(300).call(zoom.scaleBy, k); }
+function clearFlash() { if (paths) paths.classed('flash-correct', false).classed('flash-wrong', false); }
+function stopTimer() { if (timerId) { clearInterval(timerId); timerId = null; } }
 
 function setMode(m) {
+  if (!ready) return;
+  clearTimeout(advanceTimer);
+  stopTimer();
   mode = m;
-  quiz = null;
-  clearFlash();
-  resetZoom();
+  if (m !== 'quiz') { quiz = null; clearFlash(); }
+  if (m === 'explore') resetZoom();
   tooltip.style.display = 'none';
   document.getElementById('btn-explore').classList.toggle('active', m === 'explore');
-  document.getElementById('btn-quiz').classList.toggle('active', m === 'quiz');
+  document.getElementById('btn-quiz').classList.toggle('active', m !== 'explore');
   if (m === 'explore') showExplorePrompt();
+  if (m === 'setup') renderSetup();
 }
 
 function showExplorePrompt() {
+  const n = Object.keys(DB).filter(k => featureByKey[k]).length;
   panel.innerHTML = `
-    <h2>🧭 Исследование</h2>
-    <p>Кликай по странам, чтобы узнать их название, столицу и флаг.</p>
-    <p class="dim">🖱️ Колёсико — масштаб, перетаскивание — перемещение по карте.</p>
-    <p class="dim">Ярко-зелёным отмечены ${knownIds.length} страны из базы игры — остальные добавим позже!</p>`;
+    <div class="fade">
+      <h2>🧭 Исследование</h2>
+      <p>Наводи на страны и кликай, чтобы узнать название, столицу и флаг. Карта приблизится сама.</p>
+      <p class="dim">🖱️ Колёсико — масштаб · перетаскивание — перемещение</p>
+      <p class="dim">В базе <b>${n}</b> стран и территорий.</p>
+      <button class="btn primary" onclick="setMode('setup')">🎯 Сыграть в викторину</button>
+    </div>`;
 }
 
-function showCountryCard(id, englishName) {
-  const c = DB[id];
-  const back = '<div class="btn-row"><button class="btn ghost" onclick="showExplorePrompt()">← Назад</button></div>';
+function showCountryCard(key, feature) {
+  const c = DB[key];
+  const back = `<div class="btn-row"><button class="btn ghost" onclick="showExplorePrompt()">← Назад</button></div>`;
   if (c) {
+    const lvl = LEVELS[c.level];
     panel.innerHTML = `
-      <div class="card-flag"><img src="https://flagcdn.com/w320/${c[2]}.png" alt="флаг"
-        onerror="this.outerHTML='<div class=q-emoji>${flagEmoji(c[2])}</div>'"></div>
-      <h2>${c[0]}</h2>
-      <p class="en-name">${englishName || ''}</p>
-      <p class="capital">🏛️ Столица: <b>${c[1]}</b></p>
-      ${back}`;
+      <div class="fade">
+        ${flagImg(c.flag, 'flag-wrap card-flag')}
+        <h2>${c.name}</h2>
+        <p class="en-name">${(feature.properties && feature.properties.name) || ''} · ${lvl.icon} ${lvl.name}</p>
+        <p class="capital">🏛️ Столица: <b>${c.capital}</b></p>
+        ${back}
+      </div>`;
   } else {
     panel.innerHTML = `
-      <h2>${englishName || 'Неизвестная территория'}</h2>
-      <p class="dim">Эту страну мы пока не добавили в базу игры.</p>
-      ${back}`;
+      <div class="fade">
+        <h2>${(feature.properties && feature.properties.name) || 'Неизвестная территория'}</h2>
+        <p class="dim">Эта территория не входит в базу игры.</p>
+        ${back}
+      </div>`;
   }
 }
 
-function startQuiz() {
-  mode = 'quiz';
-  clearFlash();
-  resetZoom();
-  tooltip.style.display = 'none';
-  document.getElementById('btn-explore').classList.remove('active');
-  document.getElementById('btn-quiz').classList.add('active');
-  const ids = shuffle(knownIds).slice(0, 10);
-  quiz = { questions: ids.map(makeQuestion), current: 0, score: 0, answered: false };
-  renderQuizQuestion();
+function renderSetup() {
+  const chips = Object.entries(LEVELS).map(([k, l]) =>
+    `<button class="chip ${selectedLevel === k ? 'active' : ''}" onclick="selectLevel('${k}')">
+      ${l.icon} ${l.name}<span class="chip-count">${poolFor(k).length}</span>
+    </button>`).join('');
+  const key = selectedLevel + (selectedBlitz ? '-blitz' : '-classic');
+  const rec = loadRecords()[key];
+  panel.innerHTML = `
+    <div class="fade">
+      <h2>🎯 Викторина</h2>
+      <div class="section-label">Уровень</div>
+      <div class="chips">${chips}</div>
+      <div class="section-label">Режим</div>
+      <div class="chips">
+        <button class="chip ${!selectedBlitz ? 'active' : ''}" onclick="selectTime(false)">♾️ Классика</button>
+        <button class="chip ${selectedBlitz ? 'active' : ''}" onclick="selectTime(true)">⚡ Блиц · ${QUESTION_TIME} сек</button>
+      </div>
+      <div class="record-line">${rec ? `🏆 Твой рекорд: <b>${rec.score}/10</b> · ${rec.date}` : '🏆 Рекорда пока нет — установи его!'}</div>
+      <button class="btn primary big" onclick="startQuiz()">▶ Начать игру</button>
+    </div>`;
 }
 
-function makeQuestion(id) {
-  const types = ['name', 'flag', 'capital'];
-  return { id, type: types[Math.floor(Math.random() * types.length)] };
+function selectLevel(k) { selectedLevel = k; renderSetup(); }
+function selectTime(b) { selectedBlitz = b; renderSetup(); }
+
+function startQuiz() {
+  if (!ready) return;
+  clearTimeout(advanceTimer);
+  stopTimer();
+  clearFlash();
+  resetZoom();
+  mode = 'quiz';
+  const pool = shuffle(poolFor(selectedLevel)).slice(0, 10);
+  quiz = {
+    level: selectedLevel, blitz: selectedBlitz,
+    questions: pool.map(k => ({ id: k, type: randType() })),
+    current: 0, score: 0, answered: false
+  };
+  document.getElementById('btn-explore').classList.remove('active');
+  document.getElementById('btn-quiz').classList.add('active');
+  renderQuizQuestion();
 }
 
 function renderQuizQuestion() {
   quiz.answered = false;
   const q = quiz.questions[quiz.current];
   const c = DB[q.id];
+  const lvl = LEVELS[quiz.level];
   let title, target;
-  if (q.type === 'name') {
-    title = 'Найди страну:';
-    target = `<div class="q-target">${c[0]}</div>`;
-  } else if (q.type === 'flag') {
-    title = 'Найди страну по флагу:';
-    target = `<div class="q-flag"><img src="https://flagcdn.com/w320/${c[2]}.png" alt="флаг"
-      onerror="this.outerHTML='<div class=q-emoji>${flagEmoji(c[2])}</div>'"></div>`;
-  } else {
-    title = 'Найди страну со столицей:';
-    target = `<div class="q-target">${c[1]}</div>`;
-  }
+  if (q.type === 'name') { title = 'Найди страну'; target = `<div class="q-target">${c.name}</div>`; }
+  else if (q.type === 'flag') { title = 'Найди страну по флагу'; target = flagImg(c.flag); }
+  else { title = 'Найди страну со столицей'; target = `<div class="q-target">${c.capital}</div>`; }
+
   panel.innerHTML = `
-    <div class="quiz-top">
-      <span>Вопрос ${quiz.current + 1} / ${quiz.questions.length}</span>
-      <span>⭐ ${quiz.score}</span>
-    </div>
-    <h2 class="q-title">${title}</h2>
-    ${target}
-    <div id="q-feedback"></div>
-    <div class="btn-row">
-      <button id="q-next" class="btn primary hidden" onclick="nextQuestion()">Далее →</button>
-      <button class="btn" onclick="setMode('explore')">Выйти</button>
+    <div class="fade">
+      <div class="quiz-top">
+        <span class="pill">${lvl.icon} ${lvl.name}</span>
+        <span class="pill">${quiz.blitz ? '⚡ Блиц' : '♾️ Классика'}</span>
+        <span class="pill">${quiz.current + 1}/${quiz.questions.length}</span>
+        <span class="pill score-pill">⭐ ${quiz.score}</span>
+      </div>
+      ${quiz.blitz ? `<div class="timer"><div class="timer-track"><div class="timer-bar" id="timer-bar"></div></div><span id="timer-num">${QUESTION_TIME}</span></div>` : ''}
+      <h2 class="q-title">${title}</h2>
+      ${target}
+      <div id="q-feedback"></div>
+      <div class="btn-row">
+        ${quiz.blitz ? '' : `<button id="q-next" class="btn primary hidden" onclick="nextQuestion()">Далее →</button>`}
+        <button class="btn ghost" onclick="setMode('setup')">Выйти</button>
+      </div>
     </div>`;
+  if (quiz.blitz) startTimer();
 }
 
-function showQuizFeedback(correct, q) {
+function startTimer() {
+  stopTimer();
+  timeLeft = QUESTION_TIME;
+  updateTimerUI();
+  timerId = setInterval(() => {
+    timeLeft -= 0.1;
+    if (timeLeft <= 0) { stopTimer(); onTimeout(); }
+    updateTimerUI();
+  }, 100);
+}
+
+function updateTimerUI() {
+  const bar = document.getElementById('timer-bar');
+  const num = document.getElementById('timer-num');
+  if (bar) {
+    bar.style.width = Math.max(0, timeLeft / QUESTION_TIME * 100) + '%';
+    bar.classList.toggle('low', timeLeft <= 5);
+  }
+  if (num) num.textContent = Math.max(0, Math.ceil(timeLeft));
+}
+
+function onTimeout() { if (quiz && !quiz.answered) answerCountry(null); }
+
+function answerCountry(d) {
+  if (mode !== 'quiz' || !quiz || quiz.answered) return;
+  quiz.answered = true;
+  stopTimer();
+  const q = quiz.questions[quiz.current];
+  const clickedKey = d ? featureKey(d) : null;
+  const correct = clickedKey === q.id;
+  if (d) paths.filter(p => p === d).classed(correct ? 'flash-correct' : 'flash-wrong', true);
+  const cf = featureByKey[q.id];
+  if (!correct && cf) paths.filter(p => p === cf).classed('flash-correct', true);
+  if (correct) quiz.score++;
+  showQuizFeedback(correct, q, !d);
+  if (cf) zoomTo(cf);
+  if (quiz.blitz) {
+    clearTimeout(advanceTimer);
+    advanceTimer = setTimeout(nextQuestion, 1600);
+  }
+}
+
+function showQuizFeedback(correct, q, timeout) {
   const c = DB[q.id];
   const fb = document.getElementById('q-feedback');
-  fb.className = correct ? 'good' : 'bad';
-  fb.textContent = correct
-    ? `✅ Верно! Это ${c[0]}.`
-    : `❌ Неверно. Правильный ответ подсвечен зелёным — это ${c[0]}.`;
-  document.getElementById('q-next').classList.remove('hidden');
+  if (correct) { fb.className = 'good'; fb.textContent = `✅ Верно! Это ${c.name}.`; }
+  else if (timeout) { fb.className = 'bad'; fb.textContent = `⏰ Время вышло! Это ${c.name}.`; }
+  else { fb.className = 'bad'; fb.textContent = `❌ Мимо. Правильный ответ подсвечен зелёным — ${c.name}.`; }
+  const nb = document.getElementById('q-next');
+  if (nb) nb.classList.remove('hidden');
 }
 
 function nextQuestion() {
+  clearTimeout(advanceTimer);
+  stopTimer();
   clearFlash();
   quiz.current++;
-  if (quiz.current >= quiz.questions.length) {
-    showResults();
-  } else {
-    resetZoom();
-    renderQuizQuestion();
-  }
+  if (quiz.current >= quiz.questions.length) showResults();
+  else { resetZoom(); renderQuizQuestion(); }
 }
 
 function showResults() {
+  stopTimer();
   const total = quiz.questions.length;
+  const records = loadRecords();
+  const key = recordKey();
+  const prev = records[key];
+  const isRecord = !prev || quiz.score > prev.score;
+  if (isRecord) {
+    records[key] = { score: quiz.score, date: new Date().toLocaleDateString('ru-RU') };
+    saveRecords(records);
+  }
   const pct = quiz.score / total;
-  const msg = pct === 1 ? '🏆 Идеально! Ты настоящий географ!'
-    : pct >= 0.8 ? '🔥 Отличный результат!'
-    : pct >= 0.5 ? '👍 Неплохо! Продолжай тренироваться.'
-    : '📚 Стоит подтянуть географию. Попробуй ещё раз!';
+  const msg = pct === 1 ? 'Идеально! Ты знаешь весь мир!'
+    : pct >= .8 ? 'Отличный результат!'
+    : pct >= .5 ? 'Хороший результат, продолжай!'
+    : 'Потренируйся ещё — всё получится!';
   panel.innerHTML = `
-    <h2>🏁 Викторина окончена!</h2>
-    <div class="big-score">${quiz.score} / ${total}</div>
-    <p>${msg}</p>
-    <div class="btn-row">
-      <button class="btn primary" onclick="startQuiz()">🔄 Ещё раз</button>
-      <button class="btn" onclick="setMode('explore')">🧭 Исследование</button>
+    <div class="fade center">
+      <h2>🏁 Игра окончена!</h2>
+      <div class="big-score">${quiz.score}<span class="big-total">/${total}</span></div>
+      ${isRecord ? '<div class="new-record">🏆 Новый рекорд!</div>' : (prev ? `<div class="dim">Твой рекорд: ${prev.score}/${total}</div>` : '')}
+      <p>${msg}</p>
+      <div class="btn-row" style="justify-content:center">
+        <button class="btn primary" onclick="startQuiz()">🔄 Ещё раз</button>
+        <button class="btn" onclick="setMode('setup')">⚙️ Уровни</button>
+        <button class="btn" onclick="setMode('explore')">🧭 Карта</button>
+      </div>
     </div>`;
   resetZoom();
 }
