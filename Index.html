@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🌍 ГеоМастер — интерактивная карта мира</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: radial-gradient(ellipse at center, #0d2b47 0%, #071a2e 100%);
+    color: #fff;
+  }
+  #map { position: fixed; inset: 0; width: 100%; height: 100%; }
+  #viewport path { vector-effect: non-scaling-stroke; }
+  #countries path { cursor: pointer; transition: filter .15s; }
+  #countries path:hover { filter: brightness(1.4); }
+  .flash-correct { fill: #43a047 !important; }
+  .flash-wrong { fill: #e53935 !important; }
+
+  .hud { position: fixed; top: 16px; left: 16px; z-index: 10; display: flex; flex-direction: column; gap: 10px; }
+  .logo {
+    font-size: 20px; font-weight: 800; letter-spacing: .5px; width: max-content;
+    background: rgba(10,25,45,.75); backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,.12); padding: 10px 16px; border-radius: 12px;
+  }
+  .modes { display: flex; gap: 8px; }
+  .mode-btn {
+    padding: 10px 14px; border-radius: 10px; font-size: 14px; cursor: pointer; transition: .2s;
+    border: 1px solid rgba(255,255,255,.15); background: rgba(10,25,45,.75);
+    backdrop-filter: blur(10px); color: #fff;
+  }
+  .mode-btn:hover { background: rgba(255,255,255,.15); }
+  .mode-btn.active { background: linear-gradient(135deg, #ff9800, #ff5722); border-color: transparent; font-weight: 700; }
+
+  .panel {
+    position: fixed; top: 16px; right: 16px; width: 330px; z-index: 10;
+    background: rgba(10,25,45,.85); backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,.12); border-radius: 16px; padding: 22px;
+    box-shadow: 0 16px 40px rgba(0,0,0,.4); max-height: calc(100vh - 32px); overflow-y: auto;
+  }
+  .panel h2 { font-size: 22px; margin-bottom: 10px; }
+  .panel p { line-height: 1.5; margin-bottom: 8px; }
+  .dim { opacity: .6; font-size: 14px; }
+  .en-name { opacity: .5; font-size: 13px; }
+  .capital { font-size: 17px; margin-top: 6px; }
+
+  .quiz-top { display: flex; justify-content: space-between; opacity: .85; font-size: 14px; margin-bottom: 14px; }
+  .q-title { font-size: 18px; opacity: .9; margin-bottom: 6px; }
+  .q-target { font-size: 30px; font-weight: 800; color: #ffb74d; margin: 10px 0 16px; line-height: 1.2; }
+  .q-flag img, .card-flag img { width: 100%; max-width: 250px; border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.45); margin: 10px 0 14px; }
+  .card-flag img { max-width: none; margin-top: 0; }
+  .q-emoji { font-size: 70px; margin: 10px 0 16px; }
+  #q-feedback { min-height: 24px; font-weight: 600; margin: 10px 0; }
+  #q-feedback.good { color: #81c784; }
+  #q-feedback.bad { color: #ef9a9a; }
+  .big-score { font-size: 54px; font-weight: 800; margin: 16px 0; text-align: center; }
+
+  .btn-row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .btn {
+    padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer; font-size: 15px;
+    color: #fff; background: rgba(255,255,255,.12); transition: .2s;
+  }
+  .btn.primary { background: linear-gradient(135deg, #ff9800, #ff5722); font-weight: 700; }
+  .btn:hover { transform: translateY(-2px); filter: brightness(1.1); }
+  .hidden { display: none !important; }
+
+  .zoom-controls { position: fixed; bottom: 20px; right: 20px; z-index: 10; display: flex; flex-direction: column; gap: 6px; }
+  .zoom-controls button {
+    width: 42px; height: 42px; border-radius: 10px; font-size: 20px; cursor: pointer; transition: .2s;
+    border: 1px solid rgba(255,255,255,.15); background: rgba(10,25,45,.8); backdrop-filter: blur(10px); color: #fff;
+  }
+  .zoom-controls button:hover { background: rgba(255,255,255,.15); }
+
+  #tooltip {
+    position: fixed; display: none; z-index: 20; pointer-events: none; white-space: nowrap;
+    background: rgba(0,0,0,.82); padding: 5px 10px; border-radius: 6px; font-size: 13px;
+  }
+
+  @media (max-width: 700px) {
+    .panel { top: auto; bottom: 12px; left: 12px; right: 12px; width: auto; max-height: 42vh; padding: 16px; }
+    .hud { top: 10px; left: 10px; }
+    .logo { font-size: 15px; padding: 8px 12px; }
+    .mode-btn { padding: 8px 10px; font-size: 13px; }
+    .zoom-controls { bottom: auto; top: 45%; right: 10px; }
+    .q-target { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<svg id="map" viewBox="0 0 960 500" preserveAspectRatio="xMidYMid meet">
+  <defs>
+    <linearGradient id="oceanGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b4a6b"/>
+      <stop offset="1" stop-color="#0e2f4c"/>
+    </linearGradient>
+  </defs>
+  <g id="viewport"></g>
+</svg>
+
+<div class="hud">
+  <div class="logo">🌍 ГеоМастер</div>
+  <div class="modes">
+    <button id="btn-explore" class="mode-btn active" onclick="setMode('explore')">🧭 Исследование</button>
+    <button id="btn-quiz" class="mode-btn" onclick="startQuiz()">🎯 Викторина</button>
+  </div>
+</div>
+
+<div class="panel" id="panel"><h2>⏳ Загружаем карту мира…</h2></div>
+
+<div class="zoom-controls">
+  <button onclick="zoomBy(1.6)" title="Приблизить">+</button>
+  <button onclick="zoomBy(1/1.6)" title="Отдалить">−</button>
+  <button onclick="resetZoom()" title="Показать весь мир">⌂</button>
+</div>
+
+<div id="tooltip"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+<script>
+const W = 960, H = 500;
+
+// База стран: ключ = числовой ISO-код страны на карте
+// [название по-русски, столица, код флага]
+const DB = {
+  "004": ["Афганистан", "Кабул", "af"], "012": ["Алжир", "Алжир", "dz"],
+  "032": ["Аргентина", "Буэнос-Айрес", "ar"], "036": ["Австралия", "Канберра", "au"],
+  "040": ["Австрия", "Вена", "at"], "050": ["Бангладеш", "Дакка", "bd"],
+  "056": ["Бельгия", "Брюссель", "be"], "068": ["Боливия", "Сукре", "bo"],
+  "076": ["Бразилия", "Бразилиа", "br"], "100": ["Болгария", "София", "bg"],
+  "124": ["Канада", "Оттава", "ca"], "152": ["Чили", "Сантьяго", "cl"],
+  "156": ["Китай", "Пекин", "cn"], "170": ["Колумбия", "Богота", "co"],
+  "180": ["ДР Конго", "Киншаса", "cd"], "192": ["Куба", "Гавана", "cu"],
+  "203": ["Чехия", "Прага", "cz"], "208": ["Дания", "Копенгаген", "dk"],
+  "218": ["Эквадор", "Кито", "ec"], "231": ["Эфиопия", "Аддис-Абеба", "et"],
+  "246": ["Финляндия", "Хельсинки", "fi"], "250": ["Франция", "Париж", "fr"],
+  "276": ["Германия", "Берлин", "de"], "288": ["Гана", "Аккра", "gh"],
+  "300": ["Греция", "Афины", "gr"], "348": ["Венгрия", "Будапешт", "hu"],
+  "352": ["Исландия", "Рейкьявик", "is"], "356": ["Индия", "Нью-Дели", "in"],
+  "360": ["Индонезия", "Джакарта", "id"], "364": ["Иран", "Тегеран", "ir"],
+  "368": ["Ирак", "Багдад", "iq"], "372": ["Ирландия", "Дублин", "ie"],
+  "380": ["Италия", "Рим", "it"], "392": ["Япония", "Токио", "jp"],
+  "400": ["Иордания", "Амман", "jo"], "404": ["Кения", "Найроби", "ke"],
+  "434": ["Ливия", "Триполи", "ly"], "458": ["Малайзия", "Куала-Лумпур", "my"],
+  "466": ["Мали", "Бамако", "ml"], "484": ["Мексика", "Мехико", "mx"],
+  "496": ["Монголия", "Улан-Батор", "mn"], "504": ["Марокко", "Рабат", "ma"],
+  "528": ["Нидерланды", "Амстердам", "nl"], "554": ["Новая Зеландия", "Веллингтон", "nz"],
+  "566": ["Нигерия", "Абуджа", "ng"], "578": ["Норвегия", "Осло", "no"],
+  "586": ["Пакистан", "Исламабад", "pk"], "600": ["Парагвай", "Асунсьон", "py"],
+  "604": ["Перу", "Лима", "pe"], "608": ["Филиппины", "Манила", "ph"],
+  "616": ["Польша", "Варшава", "pl"], "620": ["Португалия", "Лиссабон", "pt"],
+  "642": ["Румыния", "Бухарест", "ro"], "643": ["Россия", "Москва", "ru"],
+  "682": ["Саудовская Аравия", "Эр-Рияд", "sa"], "688": ["Сербия", "Белград", "rs"],
+  "703": ["Словакия", "Братислава", "sk"], "704": ["Вьетнам", "Ханой", "vn"],
+  "710": ["ЮАР", "Претория", "za"], "724": ["Испания", "Мадрид", "es"],
+  "752": ["Швеция", "Стокгольм", "se"], "756": ["Швейцария", "Берн", "ch"],
+  "764": ["Таиланд", "Бангкок", "th"], "788": ["Тунис", "Тунис", "tn"],
+  "792": ["Турция", "Анкара", "tr"], "800": ["Уганда", "Кампала", "ug"],
+  "804": ["Украина", "Киев", "ua"], "807": ["Северная Македония", "Скопье", "mk"],
+  "818": ["Египет", "Каир", "eg"], "826": ["Великобритания", "Лондон", "gb"],
+  "840": ["США", "Вашингтон", "us"], "858": ["Уругвай", "Монтевидео", "uy"],
+  "860": ["Узбекистан", "Ташкент", "uz"], "862": ["Венесуэла", "Каракас", "ve"]
+};
+
+const normId = id => String(id ?? '').padStart(3, '0');
+const knownIds = Object.keys(DB);
+
+let mode = 'explore';
+let quiz = null;
+let featureById = {};
+let paths = null;
+let svg, viewport, zoom, path;
+
+const tooltip = document.getElementById('tooltip');
+const panel = document.getElementById('panel');
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function flagEmoji(code) {
+  return code.toUpperCase().replace(/./g, ch => String.fromCodePoint(127397 + ch.charCodeAt(0)));
+}
+
+init();
+
+async function init() {
+  let world;
+  try {
+    world = await d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+  } catch (e) {
+    panel.innerHTML = '<h2>😢 Не удалось загрузить карту</h2><p>Проверь интернет и обнови страницу.</p>';
+    return;
+  }
+  const countries = topojson.feature(world, world.objects.countries);
+  countries.features.forEach(f => featureById[normId(f.id)] = f);
+
+  svg = d3.select('#map');
+  viewport = d3.select('#viewport');
+  const projection = d3.geoNaturalEarth1().fitExtent([[8, 8], [W - 8, H - 8]], { type: 'Sphere' });
+  path = d3.geoPath(projection);
+
+  // Океан
+  viewport.append('path')
+    .attr('d', path({ type: 'Sphere' }))
+    .attr('fill', 'url(#oceanGrad)')
+    .attr('stroke', 'rgba(255,255,255,.18)')
+    .attr('stroke-width', 1);
+
+  // Сетка координат
+  viewport.append('path')
+    .attr('d', path(d3.geoGraticule10()))
+    .attr('fill', 'none')
+    .attr('stroke', 'rgba(255,255,255,.07)')
+    .attr('stroke-width', 0.5);
+
+  // Страны
+  paths = viewport.append('g').attr('id', 'countries')
+    .selectAll('path')
+    .data(countries.features)
+    .join('path')
+    .attr('d', path)
+    .attr('fill', d => DB[normId(d.id)] ? '#4e8d7c' : '#32465c')
+    .attr('stroke', '#0d2438')
+    .attr('stroke-width', 0.5)
+    .on('click', (event, d) => onCountryClick(d))
+    .on('mousemove', moveTooltip)
+    .on('mouseleave', () => tooltip.style.display = 'none');
+
+  // Зум и перетаскивание
+  zoom = d3.zoom()
+    .scaleExtent([1, 12])
+    .translateExtent([[0, 0], [W, H]])
+    .on('zoom', event => viewport.attr('transform', event.transform));
+  svg.call(zoom);
+
+  setMode('explore');
+}
+
+function onCountryClick(d) {
+  const id = normId(d.id);
+  if (mode === 'explore') {
+    showCountryCard(id, d.properties && d.properties.name);
+    zoomTo(d);
+    return;
+  }
+  if (mode === 'quiz' && quiz && !quiz.answered) {
+    quiz.answered = true;
+    const q = quiz.questions[quiz.current];
+    const correct = id === q.id;
+    paths.filter(p => p === d).classed(correct ? 'flash-correct' : 'flash-wrong', true);
+    const correctFeature = featureById[q.id];
+    if (!correct && correctFeature) paths.filter(p => p === correctFeature).classed('flash-correct', true);
+    if (correct) quiz.score++;
+    showQuizFeedback(correct, q);
+    if (correctFeature) zoomTo(correctFeature);
+  }
+}
+
+function moveTooltip(event, d) {
+  if (mode !== 'explore') { tooltip.style.display = 'none'; return; }
+  const c = DB[normId(d.id)];
+  tooltip.textContent = c ? c[0] : (d.properties && d.properties.name) || '';
+  tooltip.style.display = 'block';
+  tooltip.style.left = (event.clientX + 14) + 'px';
+  tooltip.style.top = (event.clientY + 16) + 'px';
+}
+
+function zoomTo(d) {
+  const [[x0, y0], [x1, y1]] = path.bounds(d);
+  const scale = Math.max(1, Math.min(8, 0.65 / Math.max((x1 - x0) / W, (y1 - y0) / H)));
+  const tx = W / 2 - scale * (x0 + x1) / 2;
+  const ty = H / 2 - scale * (y0 + y1) / 2;
+  svg.transition().duration(800).call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+}
+
+function resetZoom() {
+  if (svg && zoom) svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity);
+}
+
+function zoomBy(k) {
+  if (svg && zoom) svg.transition().duration(300).call(zoom.scaleBy, k);
+}
+
+function clearFlash() {
+  if (paths) paths.classed('flash-correct', false).classed('flash-wrong', false);
+}
+
+function setMode(m) {
+  mode = m;
+  quiz = null;
+  clearFlash();
+  resetZoom();
+  tooltip.style.display = 'none';
+  document.getElementById('btn-explore').classList.toggle('active', m === 'explore');
+  document.getElementById('btn-quiz').classList.toggle('active', m === 'quiz');
+  if (m === 'explore') showExplorePrompt();
+}
+
+function showExplorePrompt() {
+  panel.innerHTML = `
+    <h2>🧭 Исследование</h2>
+    <p>Кликай по странам, чтобы узнать их название, столицу и флаг.</p>
+    <p class="dim">🖱️ Колёсико — масштаб, перетаскивание — перемещение по карте.</p>
+    <p class="dim">Ярко-зелёным отмечены ${knownIds.length} страны из базы игры — остальные добавим позже!</p>`;
+}
+
+function showCountryCard(id, englishName) {
+  const c = DB[id];
+  const back = '<div class="btn-row"><button class="btn ghost" onclick="showExplorePrompt()">← Назад</button></div>';
+  if (c) {
+    panel.innerHTML = `
+      <div class="card-flag"><img src="https://flagcdn.com/w320/${c[2]}.png" alt="флаг"
+        onerror="this.outerHTML='<div class=q-emoji>${flagEmoji(c[2])}</div>'"></div>
+      <h2>${c[0]}</h2>
+      <p class="en-name">${englishName || ''}</p>
+      <p class="capital">🏛️ Столица: <b>${c[1]}</b></p>
+      ${back}`;
+  } else {
+    panel.innerHTML = `
+      <h2>${englishName || 'Неизвестная территория'}</h2>
+      <p class="dim">Эту страну мы пока не добавили в базу игры.</p>
+      ${back}`;
+  }
+}
+
+function startQuiz() {
+  mode = 'quiz';
+  clearFlash();
+  resetZoom();
+  tooltip.style.display = 'none';
+  document.getElementById('btn-explore').classList.remove('active');
+  document.getElementById('btn-quiz').classList.add('active');
+  const ids = shuffle(knownIds).slice(0, 10);
+  quiz = { questions: ids.map(makeQuestion), current: 0, score: 0, answered: false };
+  renderQuizQuestion();
+}
+
+function makeQuestion(id) {
+  const types = ['name', 'flag', 'capital'];
+  return { id, type: types[Math.floor(Math.random() * types.length)] };
+}
+
+function renderQuizQuestion() {
+  quiz.answered = false;
+  const q = quiz.questions[quiz.current];
+  const c = DB[q.id];
+  let title, target;
+  if (q.type === 'name') {
+    title = 'Найди страну:';
+    target = `<div class="q-target">${c[0]}</div>`;
+  } else if (q.type === 'flag') {
+    title = 'Найди страну по флагу:';
+    target = `<div class="q-flag"><img src="https://flagcdn.com/w320/${c[2]}.png" alt="флаг"
+      onerror="this.outerHTML='<div class=q-emoji>${flagEmoji(c[2])}</div>'"></div>`;
+  } else {
+    title = 'Найди страну со столицей:';
+    target = `<div class="q-target">${c[1]}</div>`;
+  }
+  panel.innerHTML = `
+    <div class="quiz-top">
+      <span>Вопрос ${quiz.current + 1} / ${quiz.questions.length}</span>
+      <span>⭐ ${quiz.score}</span>
+    </div>
+    <h2 class="q-title">${title}</h2>
+    ${target}
+    <div id="q-feedback"></div>
+    <div class="btn-row">
+      <button id="q-next" class="btn primary hidden" onclick="nextQuestion()">Далее →</button>
+      <button class="btn" onclick="setMode('explore')">Выйти</button>
+    </div>`;
+}
+
+function showQuizFeedback(correct, q) {
+  const c = DB[q.id];
+  const fb = document.getElementById('q-feedback');
+  fb.className = correct ? 'good' : 'bad';
+  fb.textContent = correct
+    ? `✅ Верно! Это ${c[0]}.`
+    : `❌ Неверно. Правильный ответ подсвечен зелёным — это ${c[0]}.`;
+  document.getElementById('q-next').classList.remove('hidden');
+}
+
+function nextQuestion() {
+  clearFlash();
+  quiz.current++;
+  if (quiz.current >= quiz.questions.length) {
+    showResults();
+  } else {
+    resetZoom();
+    renderQuizQuestion();
+  }
+}
+
+function showResults() {
+  const total = quiz.questions.length;
+  const pct = quiz.score / total;
+  const msg = pct === 1 ? '🏆 Идеально! Ты настоящий географ!'
+    : pct >= 0.8 ? '🔥 Отличный результат!'
+    : pct >= 0.5 ? '👍 Неплохо! Продолжай тренироваться.'
+    : '📚 Стоит подтянуть географию. Попробуй ещё раз!';
+  panel.innerHTML = `
+    <h2>🏁 Викторина окончена!</h2>
+    <div class="big-score">${quiz.score} / ${total}</div>
+    <p>${msg}</p>
+    <div class="btn-row">
+      <button class="btn primary" onclick="startQuiz()">🔄 Ещё раз</button>
+      <button class="btn" onclick="setMode('explore')">🧭 Исследование</button>
+    </div>`;
+  resetZoom();
+}
+</script>
+</body>
+</html>
