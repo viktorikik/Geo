@@ -33,6 +33,7 @@
     --land-border: #2d4a3a;
     --land-highlight: #10b981;
     --land-highlight-stroke: #34d399;
+    --overlay-bg: rgba(0,0,0,.6);
   }
   
   [data-theme="light"] {
@@ -56,6 +57,7 @@
     --land-border: #689f38;
     --land-highlight: #ff9800;
     --land-highlight-stroke: #ffb74d;
+    --overlay-bg: rgba(0,0,0,.4);
   }
   
   body {
@@ -68,15 +70,9 @@
     touch-action: none;
     transition: background .3s ease;
   }
-  #map {
-    position: fixed; inset: 0; width: 100%; height: 100%; display: block;
-    touch-action: none;
-  }
+  #map { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
   #viewport path { vector-effect: non-scaling-stroke; }
-  #countries path { 
-    cursor: pointer; 
-    transition: fill .3s ease, stroke .3s ease, filter .15s;
-  }
+  #countries path { cursor: pointer; transition: fill .3s ease, stroke .3s ease, filter .15s; }
   #countries path:hover { filter: brightness(1.2); }
   .country-highlighted {
     fill: var(--land-highlight) !important;
@@ -98,12 +94,12 @@
     background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
-  .theme-toggle {
+  .icon-btn {
     width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--panel-border);
     background: var(--btn-bg); cursor: pointer; font-size: 18px; transition: .2s;
     display: flex; align-items: center; justify-content: center;
   }
-  .theme-toggle:hover { background: var(--btn-hover); }
+  .icon-btn:hover { background: var(--btn-hover); transform: translateY(-1px); }
   
   .modes { display: flex; gap: 8px; }
   .mode-btn {
@@ -251,9 +247,108 @@
     max-width: 80%; margin: 0 auto;
   }
 
+  /* Модалки */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: var(--overlay-bg); backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px; opacity: 0; pointer-events: none; transition: opacity .25s ease;
+  }
+  .modal-overlay.show { opacity: 1; pointer-events: auto; }
+  .modal {
+    background: var(--panel-bg); backdrop-filter: blur(24px) saturate(1.4);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    border: 1px solid var(--panel-border); border-radius: 22px; padding: 26px;
+    max-width: 520px; width: 100%; max-height: 80vh; overflow-y: auto;
+    box-shadow: 0 30px 80px rgba(0,0,0,.6);
+    transform: scale(.95) translateY(10px); transition: transform .3s cubic-bezier(.2,.8,.2,1);
+  }
+  .modal-overlay.show .modal { transform: scale(1) translateY(0); }
+  .modal::-webkit-scrollbar { width: 6px; }
+  .modal::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 99px; }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .modal-header h2 { font-size: 24px; margin: 0; }
+  .close-btn {
+    width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--btn-border);
+    background: var(--btn-bg); cursor: pointer; font-size: 18px; color: var(--text-primary);
+    display: flex; align-items: center; justify-content: center; transition: .2s;
+  }
+  .close-btn:hover { background: var(--btn-hover); }
+
+  /* Ачивки */
+  .achievements-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  .ach-card {
+    padding: 14px 10px; border-radius: 14px; text-align: center;
+    background: var(--btn-bg); border: 1px solid var(--btn-border);
+    transition: .2s; position: relative;
+  }
+  .ach-card.unlocked {
+    background: linear-gradient(135deg, rgba(139,92,246,.15), rgba(6,182,212,.15));
+    border-color: rgba(139,92,246,.3);
+    box-shadow: 0 4px 14px rgba(139,92,246,.2);
+  }
+  .ach-card.locked { opacity: .5; filter: grayscale(.7); }
+  .ach-icon { font-size: 32px; margin-bottom: 6px; }
+  .ach-name { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+  .ach-desc { font-size: 11px; opacity: .7; line-height: 1.3; }
+  .ach-lock { position: absolute; top: 6px; right: 6px; font-size: 12px; opacity: .6; }
+  .ach-progress { font-size: 11px; margin-top: 6px; opacity: .7; font-weight: 600; }
+
+  /* Статистика */
+  .stats-summary {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;
+  }
+  .stat-box {
+    padding: 12px 8px; border-radius: 12px; text-align: center;
+    background: var(--btn-bg); border: 1px solid var(--btn-border);
+  }
+  .stat-value { font-size: 22px; font-weight: 800; background: linear-gradient(90deg, var(--accent-1), var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .stat-label { font-size: 11px; opacity: .6; margin-top: 2px; }
+  .weak-list { display: flex; flex-direction: column; gap: 6px; max-height: 300px; overflow-y: auto; }
+  .weak-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    border-radius: 10px; background: var(--btn-bg); border: 1px solid var(--btn-border);
+  }
+  .weak-flag { font-size: 22px; }
+  .weak-info { flex: 1; min-width: 0; }
+  .weak-name { font-size: 14px; font-weight: 700; }
+  .weak-bar { height: 4px; border-radius: 99px; background: var(--btn-border); margin-top: 4px; overflow: hidden; }
+  .weak-fill { height: 100%; background: linear-gradient(90deg, #f43f5e, #fb923c); border-radius: 99px; transition: width .3s; }
+  .weak-pct { font-size: 12px; font-weight: 700; opacity: .7; min-width: 40px; text-align: right; }
+  .empty-state { text-align: center; padding: 30px 10px; opacity: .6; }
+  .empty-state .big-emoji { font-size: 48px; margin-bottom: 10px; }
+
+  /* Тост */
+  .toast-container {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    z-index: 200; display: flex; flex-direction: column; gap: 8px;
+    pointer-events: none; width: 90%; max-width: 360px;
+  }
+  .toast {
+    background: linear-gradient(135deg, rgba(139,92,246,.95), rgba(6,182,212,.95));
+    color: #fff; padding: 14px 18px; border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(139,92,246,.5);
+    display: flex; align-items: center; gap: 12px;
+    animation: toastIn .4s cubic-bezier(.2,.8,.2,1) both;
+    pointer-events: auto;
+  }
+  .toast.out { animation: toastOut .3s ease both; }
+  .toast-icon { font-size: 28px; }
+  .toast-text { flex: 1; }
+  .toast-title { font-size: 14px; font-weight: 800; }
+  .toast-desc { font-size: 12px; opacity: .9; }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateY(-20px) scale(.9); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes toastOut {
+    to { opacity: 0; transform: translateY(-20px) scale(.9); }
+  }
+
   @media (max-width: 700px) {
     .hud { top: 10px; left: 10px; gap: 8px; }
     .logo { font-size: 15px; padding: 8px 14px; }
+    .icon-btn { width: 32px; height: 32px; font-size: 16px; }
     .mode-btn { padding: 10px 14px; font-size: 14px; }
     .view-btn { padding: 8px 12px; font-size: 13px; }
     .zoom-controls { bottom: auto; top: 42%; right: 10px; }
@@ -275,6 +370,11 @@
     .chip { padding: 10px 14px; font-size: 14px; }
     .btn { padding: 12px 18px; font-size: 15px; }
     .big-score { font-size: 50px; }
+    
+    .modal { padding: 20px; }
+    .achievements-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+    .stats-summary { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .stat-value { font-size: 18px; }
   }
 </style>
 </head>
@@ -296,7 +396,8 @@
 <div class="hud">
   <div class="logo">
     🌍 Гео<span class="grad">Мастер</span>
-    <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()">🌙</button>
+    <button class="icon-btn" id="sound-toggle" onclick="toggleSound()" title="Звук">🔊</button>
+    <button class="icon-btn" id="theme-toggle" onclick="toggleTheme()" title="Тема">🌙</button>
   </div>
   <div class="modes">
     <button id="btn-explore" class="mode-btn active" onclick="setMode('explore')">🧭 Исследование</button>
@@ -323,6 +424,31 @@
 </div>
 
 <div id="tooltip"></div>
+
+<!-- Модалка ачивок -->
+<div class="modal-overlay" id="modal-achievements" onclick="if(event.target===this)closeModal('achievements')">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>🏆 Ачивки</h2>
+      <button class="close-btn" onclick="closeModal('achievements')">✕</button>
+    </div>
+    <div id="achievements-content"></div>
+  </div>
+</div>
+
+<!-- Модалка статистики -->
+<div class="modal-overlay" id="modal-stats" onclick="if(event.target===this)closeModal('stats')">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>📊 Моя статистика</h2>
+      <button class="close-btn" onclick="closeModal('stats')">✕</button>
+    </div>
+    <div id="stats-content"></div>
+  </div>
+</div>
+
+<!-- Тосты -->
+<div class="toast-container" id="toast-container"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
@@ -449,11 +575,330 @@ for (const [level, list] of Object.entries(REGION_DATA))
     DB[k] = { name: v[0], capital: v[1], flag: v[2], level };
 
 const NAME_KEYS = { "Kosovo": "XK" };
-const REC_KEY = 'geomaster-records-v1';
-const THEME_KEY = 'geomaster-theme';
 const TYPES = ['name', 'flag', 'capital'];
 const randType = () => TYPES[Math.floor(Math.random() * TYPES.length)];
 
+// ============ ХРАНИЛИЩА ============
+const LS = {
+  records: 'geomaster-records-v1',
+  theme: 'geomaster-theme',
+  sound: 'geomaster-sound',
+  stats: 'geomaster-stats-v2',
+  achievements: 'geomaster-achievements-v1'
+};
+
+const load = (k, def) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch(e) { return def; } };
+const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} };
+
+// ============ АЧИВКИ ============
+const ACHIEVEMENTS = [
+  { id: 'first_game', icon: '🎮', name: 'Первый шаг', desc: 'Сыграй первую игру', check: s => s.gamesPlayed >= 1 },
+  { id: 'perfect', icon: '🏆', name: 'Идеально', desc: '10/10 в любом режиме', check: s => s.perfectGames >= 1 },
+  { id: 'blitz_master', icon: '⚡', name: 'Молниеносный', desc: '10/10 в блице', check: s => s.blitzPerfect >= 1 },
+  { id: 'five_games', icon: '🎯', name: 'Марафонец', desc: 'Сыграй 5 игр', check: s => s.gamesPlayed >= 5 },
+  { id: 'twenty_games', icon: '🔥', name: 'Завсегдатай', desc: 'Сыграй 20 игр', check: s => s.gamesPlayed >= 20 },
+  { id: 'explorer_20', icon: '🧭', name: 'Любопытный', desc: 'Изучи 20 стран', check: s => s.exploredCountries.length >= 20 },
+  { id: 'explorer_50', icon: '🗺️', name: 'Путешественник', desc: 'Изучи 50 стран', check: s => s.exploredCountries.length >= 50 },
+  { id: 'globe_fan', icon: '🌐', name: 'Глобусник', desc: 'Переключись на глобус', check: s => s.globeSwitches >= 1 },
+  { id: 'continent_europe', icon: '🏰', name: 'Европеец', desc: '10/10 в Европе', check: s => s.continentsPerfected?.europe },
+  { id: 'continent_asia', icon: '🏮', name: 'Азиат', desc: '10/10 в Азии', check: s => s.continentsPerfected?.asia },
+  { id: 'continent_africa', icon: '🦁', name: 'Африканец', desc: '10/10 в Африке', check: s => s.continentsPerfected?.africa },
+  { id: 'continent_america', icon: '🗽', name: 'Американец', desc: '10/10 в Америке', check: s => s.continentsPerfected?.america },
+  { id: 'continent_oceania', icon: '🏝️', name: 'Океанолог', desc: '10/10 в Океании', check: s => s.continentsPerfected?.oceania },
+  { id: 'all_continents', icon: '👑', name: 'Король географии', desc: '10/10 на всех континентах', check: s => {
+    const c = s.continentsPerfected || {};
+    return c.europe && c.asia && c.africa && c.america && c.oceania;
+  }},
+  { id: 'collector_5', icon: '💎', name: 'Коллекционер', desc: 'Собери 5 ачивок', check: (s, unlocked) => unlocked.size >= 5 }
+];
+
+// ============ СТАТИСТИКА ============
+function defaultStats() {
+  return {
+    gamesPlayed: 0, perfectGames: 0, blitzPerfect: 0,
+    continentsPerfected: {},
+    exploredCountries: [],
+    globeSwitches: 0,
+    countryErrors: {},
+    countryCorrect: {}
+  };
+}
+let stats = load(LS.stats, defaultStats());
+let unlockedAchievements = new Set(load(LS.achievements, []));
+
+function saveStats() { save(LS.stats, stats); }
+function saveAchievements() { save(LS.achievements, [...unlockedAchievements]); }
+
+function trackCorrect(key) {
+  stats.countryCorrect[key] = (stats.countryCorrect[key] || 0) + 1;
+  saveStats();
+}
+function trackError(key) {
+  stats.countryErrors[key] = (stats.countryErrors[key] || 0) + 1;
+  saveStats();
+}
+function trackExplore(key) {
+  if (!stats.exploredCountries.includes(key)) {
+    stats.exploredCountries.push(key);
+    saveStats();
+    checkAchievements();
+  }
+}
+function trackGameEnd(score, total, level, blitz) {
+  stats.gamesPlayed++;
+  if (score === total) {
+    stats.perfectGames++;
+    if (blitz) stats.blitzPerfect++;
+    if (level !== 'world') {
+      stats.continentsPerfected = stats.continentsPerfected || {};
+      stats.continentsPerfected[level] = true;
+    }
+  }
+  saveStats();
+  checkAchievements();
+}
+
+function getWeakCountries(limit = 10) {
+  const items = [];
+  for (const key of Object.keys(stats.countryErrors)) {
+    const errors = stats.countryErrors[key];
+    const correct = stats.countryCorrect[key] || 0;
+    const total = errors + correct;
+    if (total > 0 && errors > 0) {
+      items.push({ key, errors, correct, total, pct: errors / total });
+    }
+  }
+  items.sort((a, b) => b.pct - a.pct || b.errors - a.errors);
+  return items.slice(0, limit);
+}
+
+// ============ ЗВУКИ ============
+let audioCtx = null;
+let soundEnabled = load(LS.sound, true);
+
+function initAudio() {
+  if (!audioCtx) {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch(e) {}
+  }
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function playTone(freq, duration, type = 'sine', volume = 0.1, delay = 0) {
+  if (!soundEnabled || !audioCtx) return;
+  const t0 = audioCtx.currentTime + delay;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0, t0);
+  gain.gain.linearRampToValueAtTime(volume, t0 + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.001, t0 + duration);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(t0);
+  osc.stop(t0 + duration + 0.05);
+}
+
+function playCorrect() {
+  playTone(523.25, 0.12, 'sine', 0.08, 0);
+  playTone(659.25, 0.12, 'sine', 0.08, 0.08);
+  playTone(783.99, 0.2, 'sine', 0.1, 0.16);
+}
+function playWrong() {
+  playTone(220, 0.25, 'sawtooth', 0.04, 0);
+  playTone(196, 0.3, 'sawtooth', 0.04, 0.1);
+}
+function playClick() {
+  playTone(800, 0.04, 'square', 0.025, 0);
+}
+function playAchievement() {
+  [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+    playTone(f, 0.18, 'triangle', 0.09, i * 0.1);
+  });
+}
+function playRecord() {
+  [659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => {
+    playTone(f, 0.2, 'sine', 0.1, i * 0.12);
+  });
+}
+
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  save(LS.sound, soundEnabled);
+  updateSoundButton();
+  if (soundEnabled) { initAudio(); playClick(); }
+}
+function updateSoundButton() {
+  document.getElementById('sound-toggle').textContent = soundEnabled ? '🔊' : '🔇';
+}
+
+// ============ ТЕМА ============
+function loadTheme() { return load(LS.theme, 'dark'); }
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('theme-toggle').textContent = theme === 'dark' ? '🌙' : '☀️';
+  updateOceanColors();
+  updateLandColors();
+}
+function toggleTheme() {
+  playClick();
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  const next = current === 'dark' ? 'light' : 'dark';
+  save(LS.theme, next);
+  applyTheme(next);
+}
+function updateOceanColors() {
+  const s = getComputedStyle(document.documentElement);
+  document.querySelector('.ocean-stop-1').setAttribute('stop-color', s.getPropertyValue('--ocean-1').trim());
+  document.querySelector('.ocean-stop-2').setAttribute('stop-color', s.getPropertyValue('--ocean-2').trim());
+}
+function updateLandColors() {
+  if (!paths) return;
+  const s = getComputedStyle(document.documentElement);
+  const known = s.getPropertyValue('--land-known').trim();
+  const unknown = s.getPropertyValue('--land-unknown').trim();
+  const border = s.getPropertyValue('--land-border').trim();
+  paths.attr('fill', d => {
+    if (d.__highlighted) return null;
+    return DB[featureKey(d)] ? known : unknown;
+  }).attr('stroke', border);
+}
+
+// ============ ТОСТЫ ============
+function showToast(icon, title, desc, duration = 3500) {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.innerHTML = `<div class="toast-icon">${icon}</div><div class="toast-text"><div class="toast-title">${title}</div><div class="toast-desc">${desc}</div></div>`;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('out');
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
+}
+
+// ============ ПРОВЕРКА АЧИВОК ============
+function checkAchievements() {
+  let newUnlocked = [];
+  for (const ach of ACHIEVEMENTS) {
+    if (!unlockedAchievements.has(ach.id) && ach.check(stats, unlockedAchievements)) {
+      unlockedAchievements.add(ach.id);
+      newUnlocked.push(ach);
+    }
+  }
+  if (newUnlocked.length > 0) {
+    saveAchievements();
+    newUnlocked.forEach((ach, i) => {
+      setTimeout(() => {
+        playAchievement();
+        showToast(ach.icon, `Ачивка: ${ach.name}`, ach.desc, 3500);
+      }, i * 800);
+    });
+  }
+}
+
+// ============ МОДАЛКИ ============
+function openModal(name) {
+  playClick();
+  if (name === 'achievements') renderAchievements();
+  if (name === 'stats') renderStats();
+  document.getElementById('modal-' + name).classList.add('show');
+}
+function closeModal(name) {
+  playClick();
+  document.getElementById('modal-' + name).classList.remove('show');
+}
+
+function renderAchievements() {
+  const total = ACHIEVEMENTS.length;
+  const unlocked = ACHIEVEMENTS.filter(a => unlockedAchievements.has(a.id)).length;
+  const html = `
+    <p class="dim" style="margin-bottom:14px">Открыто: <b style="color:var(--text-primary)">${unlocked}/${total}</b></p>
+    <div class="achievements-grid">
+      ${ACHIEVEMENTS.map(a => {
+        const u = unlockedAchievements.has(a.id);
+        return `<div class="ach-card ${u ? 'unlocked' : 'locked'}">
+          ${u ? '' : '<div class="ach-lock">🔒</div>'}
+          <div class="ach-icon">${a.icon}</div>
+          <div class="ach-name">${a.name}</div>
+          <div class="ach-desc">${a.desc}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  document.getElementById('achievements-content').innerHTML = html;
+}
+
+function renderStats() {
+  const totalAnswers = Object.values(stats.countryCorrect).reduce((a,b)=>a+b,0) + Object.values(stats.countryErrors).reduce((a,b)=>a+b,0);
+  const totalErrors = Object.values(stats.countryErrors).reduce((a,b)=>a+b,0);
+  const accuracy = totalAnswers > 0 ? Math.round((totalAnswers - totalErrors) / totalAnswers * 100) : 0;
+  
+  const weak = getWeakCountries(8);
+  const weakHtml = weak.length === 0
+    ? `<div class="empty-state"><div class="big-emoji">🎉</div><p>Пока нет ошибок — ты молодец!<br>Сыграй в викторину, чтобы увидеть слабые места.</p></div>`
+    : `<div class="weak-list">${weak.map(w => {
+        const c = DB[w.key];
+        if (!c) return '';
+        return `<div class="weak-item">
+          <div class="weak-flag">${flagEmoji(c.flag)}</div>
+          <div class="weak-info">
+            <div class="weak-name">${c.name}</div>
+            <div class="weak-bar"><div class="weak-fill" style="width:${w.pct*100}%"></div></div>
+          </div>
+          <div class="weak-pct">${w.errors}/${w.total}</div>
+        </div>`;
+      }).join('')}</div>`;
+
+  const html = `
+    <div class="stats-summary">
+      <div class="stat-box"><div class="stat-value">${stats.gamesPlayed}</div><div class="stat-label">Игр сыграно</div></div>
+      <div class="stat-box"><div class="stat-value">${accuracy}%</div><div class="stat-label">Точность</div></div>
+      <div class="stat-box"><div class="stat-value">${stats.exploredCountries.length}</div><div class="stat-label">Стран изучено</div></div>
+    </div>
+    <div class="section-label">Слабые места</div>
+    ${weakHtml}
+    <div class="btn-row" style="margin-top:18px">
+      <button class="btn primary" onclick="closeModal('stats');trainWeak()">🎯 Тренировать слабые</button>
+      <button class="btn ghost" onclick="resetStats()">Сбросить</button>
+    </div>`;
+  document.getElementById('stats-content').innerHTML = html;
+}
+
+function resetStats() {
+  if (!confirm('Сбросить всю статистику и ачивки? Это действие нельзя отменить.')) return;
+  stats = defaultStats();
+  unlockedAchievements = new Set();
+  saveStats();
+  saveAchievements();
+  renderStats();
+  showToast('🗑️', 'Статистика сброшена', 'Начни с чистого листа', 2500);
+}
+
+function trainWeak() {
+  const weak = getWeakCountries(10);
+  if (weak.length === 0) {
+    showToast('✨', 'Нет слабых стран', 'Сыграй обычную викторину', 2500);
+    return;
+  }
+  selectedLevel = 'world';
+  selectedBlitz = false;
+  mode = 'quiz';
+  const pool = shuffle(weak.map(w => w.key));
+  quiz = {
+    level: 'world', blitz: false, isTraining: true,
+    questions: pool.slice(0, 10).map(k => ({ id: k, type: randType() })),
+    current: 0, score: 0, answered: false
+  };
+  document.getElementById('btn-explore').classList.remove('active');
+  document.getElementById('btn-quiz').classList.add('active');
+  renderQuizQuestion();
+  collapsePanel();
+  showToast('🎯', 'Тренировка', `Слабые страны: ${pool.slice(0,5).map(k=>DB[k].name).join(', ')}...`, 3500);
+}
+
+// ============ ОСНОВНЫЕ ПЕРЕМЕННЫЕ ============
 let ready = false;
 let mode = 'explore';
 let mapMode = 'flat';
@@ -472,17 +917,14 @@ const panel = document.getElementById('panel');
 const panelContent = document.getElementById('panel-content');
 const panelHandle = document.getElementById('panel-handle');
 const panelHandleTitle = document.getElementById('panel-handle-title');
-const themeToggle = document.getElementById('theme-toggle');
 
 function isMobile() { return window.innerWidth <= 700; }
-
 function featureKey(f) {
   const id = String(f.id ?? '');
   if (!id) return null;
   if (id.startsWith('-')) return NAME_KEYS[f.properties && f.properties.name] || null;
   return id.padStart(3, '0');
 }
-
 function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -491,113 +933,47 @@ function shuffle(arr) {
   }
   return a;
 }
-
 function flagEmoji(code) {
   return code.toUpperCase().replace(/./g, ch => String.fromCodePoint(127397 + ch.charCodeAt(0)));
 }
-
 function flagImg(code, cls = 'flag-wrap') {
   return `<div class="${cls}"><img src="https://flagcdn.com/w320/${code}.png" alt="флаг"
     onerror="this.outerHTML='<div class=q-emoji>${flagEmoji(code)}</div>'"></div>`;
 }
-
-function loadRecords() { try { return JSON.parse(localStorage.getItem(REC_KEY)) || {}; } catch (e) { return {}; } }
-function saveRecords(r) { try { localStorage.setItem(REC_KEY, JSON.stringify(r)); } catch (e) {} }
+function loadRecords() { return load(LS.records, {}); }
+function saveRecords(r) { save(LS.records, r); }
 function recordKey() { return quiz.level + (quiz.blitz ? '-blitz' : '-classic'); }
-
 function poolFor(level) {
   return Object.keys(DB).filter(k => featureByKey[k] && (level === 'world' || DB[k].level === level));
 }
 
-function setHandleTitle(text) {
-  if (panelHandleTitle) panelHandleTitle.textContent = text;
-}
+function setHandleTitle(text) { if (panelHandleTitle) panelHandleTitle.textContent = text; }
+function togglePanel() { playClick(); panel.classList.toggle('expanded'); }
+function collapsePanel() { if (isMobile()) panel.classList.remove('expanded'); }
 
-function togglePanel() {
-  panel.classList.toggle('expanded');
-}
-
-function collapsePanel() {
-  if (isMobile()) panel.classList.remove('expanded');
-}
-
-// Theme
-function loadTheme() {
-  const saved = localStorage.getItem(THEME_KEY);
-  return saved || 'dark';
-}
-
-function applyTheme(theme) {
-  document.documentElement.setAttribute('data-theme', theme);
-  themeToggle.textContent = theme === 'dark' ? '🌙' : '☀️';
-  updateOceanColors();
-  updateLandColors();
-}
-
-function toggleTheme() {
-  const current = document.documentElement.getAttribute('data-theme') || 'dark';
-  const next = current === 'dark' ? 'light' : 'dark';
-  localStorage.setItem(THEME_KEY, next);
-  applyTheme(next);
-}
-
-function updateOceanColors() {
-  const style = getComputedStyle(document.documentElement);
-  const ocean1 = style.getPropertyValue('--ocean-1').trim();
-  const ocean2 = style.getPropertyValue('--ocean-2').trim();
-  document.querySelector('.ocean-stop-1').setAttribute('stop-color', ocean1);
-  document.querySelector('.ocean-stop-2').setAttribute('stop-color', ocean2);
-}
-
-function updateLandColors() {
-  if (!paths) return;
-  const style = getComputedStyle(document.documentElement);
-  const known = style.getPropertyValue('--land-known').trim();
-  const unknown = style.getPropertyValue('--land-unknown').trim();
-  const border = style.getPropertyValue('--land-border').trim();
-  
-  paths.attr('fill', d => {
-    if (d.__highlighted) return null;
-    return DB[featureKey(d)] ? known : unknown;
-  }).attr('stroke', border);
-}
-
-let touchStartY = 0;
-let touchCurrentY = 0;
-let isSwiping = false;
-
+// Swipe для плашки
+let touchStartY = 0, touchCurrentY = 0, isSwiping = false;
 panelHandle.addEventListener('touchstart', (e) => {
-  touchStartY = e.touches[0].clientY;
-  touchCurrentY = touchStartY;
-  isSwiping = false;
+  touchStartY = e.touches[0].clientY; touchCurrentY = touchStartY; isSwiping = false;
 }, { passive: true });
-
 panelHandle.addEventListener('touchmove', (e) => {
   touchCurrentY = e.touches[0].clientY;
   const dy = touchCurrentY - touchStartY;
-  if (dy > 10) {
-    isSwiping = true;
-    panel.style.transform = `translateY(${dy}px)`;
-  }
+  if (dy > 10) { isSwiping = true; panel.style.transform = `translateY(${dy}px)`; }
 }, { passive: true });
-
 panelHandle.addEventListener('touchend', () => {
   const dy = touchCurrentY - touchStartY;
-  if (isSwiping && dy > 80) {
-    panel.classList.remove('expanded');
-  }
+  if (isSwiping && dy > 80) panel.classList.remove('expanded');
   panel.style.transform = '';
-  touchStartY = 0;
-  touchCurrentY = 0;
-  isSwiping = false;
+  touchStartY = 0; touchCurrentY = 0; isSwiping = false;
 });
-
 panelHandle.addEventListener('click', togglePanel);
 
 init();
 
 async function init() {
   applyTheme(loadTheme());
+  updateSoundButton();
   
   let world;
   try {
@@ -615,29 +991,19 @@ async function init() {
   path = d3.geoPath(projection);
 
   haloPath = viewport.append('path')
-    .attr('fill', 'none')
-    .attr('stroke', 'rgba(96,165,250,.45)')
-    .attr('stroke-width', 10)
-    .attr('filter', 'url(#glow)')
-    .style('display', 'none');
-
+    .attr('fill', 'none').attr('stroke', 'rgba(96,165,250,.45)')
+    .attr('stroke-width', 10).attr('filter', 'url(#glow)').style('display', 'none');
   spherePath = viewport.append('path')
-    .attr('fill', 'url(#oceanGrad)')
-    .attr('stroke', 'rgba(255,255,255,.12)')
-    .attr('stroke-width', 1);
-
+    .attr('fill', 'url(#oceanGrad)').attr('stroke', 'rgba(255,255,255,.12)').attr('stroke-width', 1);
   graticulePath = viewport.append('path')
-    .attr('fill', 'none')
-    .attr('stroke', 'rgba(255,255,255,.045)')
-    .attr('stroke-width', 0.5);
+    .attr('fill', 'none').attr('stroke', 'rgba(255,255,255,.045)').attr('stroke-width', 0.5);
 
   paths = viewport.append('g').attr('id', 'countries')
-    .selectAll('path')
-    .data(countries.features)
-    .join('path')
+    .selectAll('path').data(countries.features).join('path')
     .attr('d', path)
     .on('click', (event, d) => {
-      if (mode === 'explore') { highlightAndShow(d); }
+      initAudio();
+      if (mode === 'explore') highlightAndShow(d);
       else if (mode === 'quiz') answerCountry(d);
     })
     .on('mousemove', moveTooltip)
@@ -646,18 +1012,13 @@ async function init() {
   updateLandColors();
   redrawAll();
 
-  zoom = d3.zoom()
-    .scaleExtent([1, 25])
-    .translateExtent([[0, 0], [W, H]])
+  zoom = d3.zoom().scaleExtent([1, 25]).translateExtent([[0, 0], [W, H]])
     .on('zoom', event => viewport.attr('transform', event.transform));
   svg.call(zoom);
 
-  globeDrag = d3.drag()
-    .clickDistance(5)
-    .on('start', function(event) {
-      svg.interrupt();
-    })
-    .on('drag', function(event) {
+  globeDrag = d3.drag().clickDistance(5)
+    .on('start', () => svg.interrupt())
+    .on('drag', (event) => {
       const k = 57.2958 / projection.scale();
       const r = projection.rotate();
       const phi = Math.max(-85, Math.min(85, r[1] - event.dy * k));
@@ -665,42 +1026,30 @@ async function init() {
       redrawAll();
     });
 
-  let touchStartDist = 0;
-  let touchStartScale = 0;
-
+  let touchStartDist = 0, touchStartScale = 0;
   svg.on('touchstart.pinch', function(event) {
     if (event.touches.length === 2) {
       event.preventDefault();
       touchStartDist = getDistance(event.touches[0], event.touches[1]);
-      if (mapMode === 'globe') {
-        touchStartScale = projection.scale();
-      } else {
-        touchStartScale = d3.zoomTransform(svg.node()).k;
-      }
+      touchStartScale = mapMode === 'globe' ? projection.scale() : d3.zoomTransform(svg.node()).k;
     }
   });
-
   svg.on('touchmove.pinch', function(event) {
     if (event.touches.length === 2) {
       event.preventDefault();
       const dist = getDistance(event.touches[0], event.touches[1]);
       const scale = touchStartScale * (dist / touchStartDist);
-      
       if (mapMode === 'globe') {
         const newScale = Math.max(globeScaleDefault * 0.7, Math.min(globeScaleDefault * 5, scale));
-        projection.scale(newScale);
-        redrawAll();
+        projection.scale(newScale); redrawAll();
       } else {
         const newScale = Math.max(1, Math.min(25, scale));
-        const transform = d3.zoomIdentity.scale(newScale);
-        svg.call(zoom.transform, transform);
+        svg.call(zoom.transform, d3.zoomIdentity.scale(newScale));
       }
     }
   });
-
   function getDistance(t1, t2) {
-    const dx = t1.clientX - t2.clientX;
-    const dy = t1.clientY - t2.clientY;
+    const dx = t1.clientX - t2.clientX, dy = t1.clientY - t2.clientY;
     return Math.sqrt(dx * dx + dy * dy);
   }
 
@@ -710,16 +1059,15 @@ async function init() {
 
 function highlightAndShow(d) {
   const key = featureKey(d);
-  
   if (highlightedCountry) {
     highlightedCountry.__highlighted = false;
     highlightedCountry.classed('country-highlighted', false);
   }
-  
   d.__highlighted = true;
   d3.select(d).classed('country-highlighted', true);
   highlightedCountry = d3.select(d);
-  
+  playClick();
+  if (DB[key]) trackExplore(key);
   setTimeout(() => {
     showCountryCard(key, d);
     zoomTo(d);
@@ -740,6 +1088,13 @@ function setMapMode(m) {
   document.getElementById('view-globe').classList.toggle('active', m === 'globe');
   tooltip.style.display = 'none';
   svg.interrupt();
+  playClick();
+  
+  if (m === 'globe') {
+    stats.globeSwitches = (stats.globeSwitches || 0) + 1;
+    saveStats();
+    checkAchievements();
+  }
 
   if (m === 'flat') {
     svg.on('.drag', null);
@@ -794,6 +1149,7 @@ function rotateTo(d) {
 
 function resetZoom() {
   if (!ready) return;
+  playClick();
   if (highlightedCountry) {
     highlightedCountry.__highlighted = false;
     highlightedCountry.classed('country-highlighted', false);
@@ -815,6 +1171,7 @@ function resetZoom() {
 
 function zoomBy(k) {
   if (!ready) return;
+  playClick();
   if (mapMode === 'flat') {
     svg.transition().duration(300).call(zoom.scaleBy, k);
   } else {
@@ -843,6 +1200,7 @@ function setMode(m) {
   if (m === 'explore') showExplorePrompt();
   if (m === 'setup') renderSetup();
   collapsePanel();
+  playClick();
 }
 
 function showExplorePrompt() {
@@ -853,10 +1211,14 @@ function showExplorePrompt() {
   panelContent.innerHTML = `
     <div class="fade">
       <h2>🧭 Исследование</h2>
-      <p>Наводи на страны и кликай, чтобы узнать название, столицу и флаг. Карта сама приблизится к стране.</p>
+      <p>Наводи на страны и кликай, чтобы узнать название, столицу и флаг.</p>
       <p class="dim">${hint}</p>
       <p class="dim">В базе <b>${n}</b> стран и территорий.</p>
-      <button class="btn primary" onclick="setMode('setup')">🎯 Сыграть в викторину</button>
+      <div class="btn-row">
+        <button class="btn primary" onclick="setMode('setup')">🎯 Викторина</button>
+        <button class="btn" onclick="openModal('achievements')">🏆 Ачивки</button>
+        <button class="btn" onclick="openModal('stats')">📊 Статистика</button>
+      </div>
     </div>`;
   setHandleTitle('🧭 Исследование');
 }
@@ -866,12 +1228,16 @@ function showCountryCard(key, feature) {
   const back = `<div class="btn-row"><button class="btn ghost" onclick="showExplorePrompt()">← Назад</button></div>`;
   if (c) {
     const lvl = LEVELS[c.level];
+    const err = stats.countryErrors[key] || 0;
+    const cor = stats.countryCorrect[key] || 0;
+    const statLine = (err + cor) > 0 ? `<p class="dim">📊 Твои ответы: ✅ ${cor} · ❌ ${err}</p>` : '';
     panelContent.innerHTML = `
       <div class="fade">
         ${flagImg(c.flag, 'flag-wrap card-flag')}
         <h2>${c.name}</h2>
         <p class="en-name">${(feature.properties && feature.properties.name) || ''} · ${lvl.icon} ${lvl.name}</p>
         <p class="capital">🏛️ Столица: <b>${c.capital}</b></p>
+        ${statLine}
         ${back}
       </div>`;
     setHandleTitle(c.name);
@@ -907,16 +1273,21 @@ function renderSetup() {
       </div>
       <div class="record-line">${rec ? `🏆 Твой рекорд: <b>${rec.score}/10</b> · ${rec.date}` : '🏆 Рекорда пока нет — установи его!'}</div>
       <button class="btn primary big" onclick="startQuiz()">▶ Начать игру</button>
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn" onclick="openModal('achievements')" style="flex:1">🏆 Ачивки (${unlockedAchievements.size}/${ACHIEVEMENTS.length})</button>
+        <button class="btn" onclick="openModal('stats')" style="flex:1">📊 Статистика</button>
+      </div>
     </div>`;
   setHandleTitle('🎯 Викторина');
   if (isMobile()) panel.classList.add('expanded');
 }
 
-function selectLevel(k) { selectedLevel = k; renderSetup(); }
-function selectTime(b) { selectedBlitz = b; renderSetup(); }
+function selectLevel(k) { selectedLevel = k; playClick(); renderSetup(); }
+function selectTime(b) { selectedBlitz = b; playClick(); renderSetup(); }
 
 function startQuiz() {
   if (!ready) return;
+  initAudio();
   clearTimeout(advanceTimer);
   stopTimer();
   clearFlash();
@@ -932,6 +1303,7 @@ function startQuiz() {
   document.getElementById('btn-quiz').classList.add('active');
   renderQuizQuestion();
   collapsePanel();
+  playClick();
 }
 
 function renderQuizQuestion() {
@@ -995,10 +1367,21 @@ function answerCountry(d) {
   const q = quiz.questions[quiz.current];
   const clickedKey = d ? featureKey(d) : null;
   const correct = clickedKey === q.id;
+  
+  if (correct) {
+    quiz.score++;
+    trackCorrect(q.id);
+    playCorrect();
+  } else {
+    trackError(q.id);
+    if (clickedKey && clickedKey !== q.id) trackError(clickedKey);
+    playWrong();
+  }
+  
   if (d) paths.filter(p => p === d).classed(correct ? 'flash-correct' : 'flash-wrong', true);
   const cf = featureByKey[q.id];
   if (!correct && cf) paths.filter(p => p === cf).classed('flash-correct', true);
-  if (correct) quiz.score++;
+  
   showQuizFeedback(correct, q, !d);
   if (cf) zoomTo(cf);
   if (quiz.blitz) {
@@ -1012,7 +1395,7 @@ function showQuizFeedback(correct, q, timeout) {
   const fb = document.getElementById('q-feedback');
   if (correct) { fb.className = 'good'; fb.textContent = `✅ Верно! Это ${c.name}.`; }
   else if (timeout) { fb.className = 'bad'; fb.textContent = `⏰ Время вышло! Это ${c.name}.`; }
-  else { fb.className = 'bad'; fb.textContent = `❌ Мимо. Правильный ответ подсвечен зелёным — ${c.name}.`; }
+  else { fb.className = 'bad'; fb.textContent = `❌ Мимо. Правильный ответ — ${c.name}.`; }
   const nb = document.getElementById('q-next');
   if (nb) nb.classList.remove('hidden');
 }
@@ -1037,11 +1420,15 @@ function showResults() {
     records[key] = { score: quiz.score, date: new Date().toLocaleDateString('ru-RU') };
     saveRecords(records);
   }
+  
+  trackGameEnd(quiz.score, total, quiz.level, quiz.blitz);
+  
   const pct = quiz.score / total;
   const msg = pct === 1 ? 'Идеально! Ты знаешь весь мир!'
     : pct >= .8 ? 'Отличный результат!'
     : pct >= .5 ? 'Хороший результат, продолжай!'
     : 'Потренируйся ещё — всё получится!';
+  
   panelContent.innerHTML = `
     <div class="fade center">
       <h2>🏁 Игра окончена!</h2>
@@ -1057,6 +1444,8 @@ function showResults() {
   setHandleTitle(`🏁 ${quiz.score}/${total}`);
   resetZoom();
   if (isMobile()) panel.classList.add('expanded');
+  
+  if (isRecord) setTimeout(playRecord, 400);
 }
 </script>
 </body>
