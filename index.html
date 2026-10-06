@@ -26,9 +26,9 @@
   .flash-correct { fill: #10b981 !important; }
   .flash-wrong { fill: #f43f5e !important; }
 
-  .hud { position: fixed; top: 16px; left: 16px; z-index: 10; display: flex; flex-direction: column; gap: 10px; }
+  .hud { position: fixed; top: 16px; left: 16px; z-index: 10; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
   .logo {
-    font-size: 19px; font-weight: 800; width: max-content; letter-spacing: .3px;
+    font-size: 19px; font-weight: 800; letter-spacing: .3px;
     background: rgba(11,16,32,.7); backdrop-filter: blur(14px);
     border: 1px solid rgba(255,255,255,.09); padding: 10px 18px; border-radius: 14px;
   }
@@ -47,6 +47,20 @@
     color: #fff; border-color: transparent;
     background: linear-gradient(135deg, #8b5cf6, #06b6d4);
     box-shadow: 0 6px 20px rgba(139,92,246,.4);
+  }
+  .views {
+    display: flex; padding: 3px; border-radius: 12px;
+    background: rgba(11,16,32,.7); backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,.09);
+  }
+  .view-btn {
+    border: none; background: transparent; color: rgba(238,241,255,.6); cursor: pointer; transition: .2s;
+    font-family: inherit; font-size: 13px; font-weight: 700; padding: 7px 14px; border-radius: 9px;
+  }
+  .view-btn:hover { color: #fff; }
+  .view-btn.active {
+    background: linear-gradient(135deg, #8b5cf6, #06b6d4); color: #fff;
+    box-shadow: 0 4px 14px rgba(139,92,246,.4);
   }
 
   .panel {
@@ -154,9 +168,10 @@
 
   @media (max-width: 700px) {
     .panel { top: auto; bottom: 12px; left: 12px; right: 12px; width: auto; max-height: 44vh; padding: 18px; }
-    .hud { top: 10px; left: 10px; }
+    .hud { top: 10px; left: 10px; gap: 8px; }
     .logo { font-size: 15px; padding: 8px 14px; }
     .mode-btn { padding: 8px 12px; font-size: 13px; }
+    .view-btn { padding: 6px 10px; font-size: 12px; }
     .zoom-controls { bottom: auto; top: 42%; right: 10px; }
     .q-target { font-size: 24px; }
   }
@@ -170,6 +185,9 @@
       <stop offset="0" stop-color="#10233f"/>
       <stop offset="1" stop-color="#060b16"/>
     </radialGradient>
+    <filter id="glow" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
   </defs>
   <g id="viewport"></g>
 </svg>
@@ -179,6 +197,10 @@
   <div class="modes">
     <button id="btn-explore" class="mode-btn active" onclick="setMode('explore')">🧭 Исследование</button>
     <button id="btn-quiz" class="mode-btn" onclick="setMode('setup')">🎯 Викторина</button>
+  </div>
+  <div class="views">
+    <button id="view-flat" class="view-btn active" onclick="setMapMode('flat')">🗺️ Плоская</button>
+    <button id="view-globe" class="view-btn" onclick="setMapMode('globe')">🌐 Глобус</button>
   </div>
 </div>
 
@@ -197,6 +219,7 @@
 <script>
 const W = 960, H = 500;
 const QUESTION_TIME = 15;
+const GLOBE_ROT0 = [-10, -20, 0];
 
 const LEVELS = {
   world:   { name: 'Весь мир',  icon: '🌍' },
@@ -323,11 +346,14 @@ const randType = () => TYPES[Math.floor(Math.random() * TYPES.length)];
 
 let ready = false;
 let mode = 'explore';
+let mapMode = 'flat';
 let quiz = null;
 let selectedLevel = 'world';
 let selectedBlitz = false;
 let featureByKey = {};
-let paths = null, svg, viewport, zoom, path;
+let paths = null, svg, viewport, zoom, projection, path;
+let spherePath, graticulePath, haloPath;
+let globeScaleDefault = 220, globeDrag;
 let timerId = null, timeLeft = 0, advanceTimer = null;
 
 const tooltip = document.getElementById('tooltip');
@@ -381,17 +407,22 @@ async function init() {
 
   svg = d3.select('#map');
   viewport = d3.select('#viewport');
-  const projection = d3.geoNaturalEarth1().fitExtent([[10, 10], [W - 10, H - 10]], { type: 'Sphere' });
+  projection = d3.geoNaturalEarth1().fitExtent([[10, 10], [W - 10, H - 10]], { type: 'Sphere' });
   path = d3.geoPath(projection);
 
-  viewport.append('path')
-    .attr('d', path({ type: 'Sphere' }))
+  haloPath = viewport.append('path')
+    .attr('fill', 'none')
+    .attr('stroke', 'rgba(96,165,250,.45)')
+    .attr('stroke-width', 10)
+    .attr('filter', 'url(#glow)')
+    .style('display', 'none');
+
+  spherePath = viewport.append('path')
     .attr('fill', 'url(#oceanGrad)')
     .attr('stroke', 'rgba(255,255,255,.12)')
     .attr('stroke-width', 1);
 
-  viewport.append('path')
-    .attr('d', path(d3.geoGraticule10()))
+  graticulePath = viewport.append('path')
     .attr('fill', 'none')
     .attr('stroke', 'rgba(255,255,255,.045)')
     .attr('stroke-width', 0.5);
@@ -400,7 +431,6 @@ async function init() {
     .selectAll('path')
     .data(countries.features)
     .join('path')
-    .attr('d', path)
     .attr('fill', d => DB[featureKey(d)] ? '#1e2a4d' : '#131b31')
     .attr('stroke', '#070d1c')
     .attr('stroke-width', 0.6)
@@ -411,14 +441,75 @@ async function init() {
     .on('mousemove', moveTooltip)
     .on('mouseleave', () => tooltip.style.display = 'none');
 
+  redrawAll();
+
   zoom = d3.zoom()
     .scaleExtent([1, 12])
     .translateExtent([[0, 0], [W, H]])
     .on('zoom', event => viewport.attr('transform', event.transform));
   svg.call(zoom);
 
+  globeDrag = d3.drag()
+    .on('start', () => svg.interrupt())
+    .on('drag', (event) => {
+      const k = 57.2958 / projection.scale();
+      const r = projection.rotate();
+      const phi = Math.max(-85, Math.min(85, r[1] - event.dy * k));
+      projection.rotate([r[0] + event.dx * k, phi, 0]);
+      redrawAll();
+    });
+
   ready = true;
   setMode('explore');
+}
+
+function redrawAll() {
+  spherePath.attr('d', path({ type: 'Sphere' }));
+  graticulePath.attr('d', path(d3.geoGraticule10()));
+  haloPath.attr('d', path({ type: 'Sphere' }));
+  paths.attr('d', path);
+}
+
+function setMapMode(m) {
+  if (!ready || mapMode === m) return;
+  mapMode = m;
+  document.getElementById('view-flat').classList.toggle('active', m === 'flat');
+  document.getElementById('view-globe').classList.toggle('active', m === 'globe');
+  tooltip.style.display = 'none';
+  svg.interrupt();
+
+  if (m === 'flat') {
+    svg.on('.drag', null);
+    svg.on('wheel.globe', null);
+    projection = d3.geoNaturalEarth1().fitExtent([[10, 10], [W - 10, H - 10]], { type: 'Sphere' });
+    haloPath.style('display', 'none');
+    svg.call(zoom);
+    svg.call(zoom.transform, d3.zoomIdentity);
+  } else {
+    svg.on('.zoom', null);
+    viewport.attr('transform', null);
+    projection = d3.geoOrthographic().clipAngle(90)
+      .fitExtent([[30, 30], [W - 30, H - 30]], { type: 'Sphere' });
+    globeScaleDefault = projection.scale();
+    projection.rotate(GLOBE_ROT0);
+    haloPath.style('display', null);
+    svg.call(globeDrag);
+    svg.on('wheel.globe', globeWheel, { passive: false });
+  }
+  path = d3.geoPath(projection);
+  redrawAll();
+  if (mode === 'explore') showExplorePrompt();
+}
+
+function globeWheel(event) {
+  event.preventDefault();
+  const k = event.deltaY < 0 ? 1.15 : 1 / 1.15;
+  const s0 = projection.scale();
+  const s1 = Math.max(globeScaleDefault * 0.7, Math.min(globeScaleDefault * 3, s0 * k));
+  svg.transition('zoomGlobe').duration(200).tween('scale', () => {
+    const i = d3.interpolate(s0, s1);
+    return t => { projection.scale(i(t)); redrawAll(); };
+  });
 }
 
 function moveTooltip(event, d) {
@@ -431,6 +522,7 @@ function moveTooltip(event, d) {
 }
 
 function zoomTo(d) {
+  if (mapMode === 'globe') { rotateTo(d); return; }
   const [[x0, y0], [x1, y1]] = path.bounds(d);
   const scale = Math.max(1, Math.min(8, 0.65 / Math.max((x1 - x0) / W, (y1 - y0) / H)));
   const tx = W / 2 - scale * (x0 + x1) / 2;
@@ -438,8 +530,48 @@ function zoomTo(d) {
   svg.transition().duration(800).call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
 }
 
-function resetZoom() { if (svg && zoom) svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity); }
-function zoomBy(k) { if (svg && zoom) svg.transition().duration(300).call(zoom.scaleBy, k); }
+function rotateTo(d) {
+  const [lambda, phi] = d3.geoCentroid(d);
+  const r0 = projection.rotate();
+  let tl = -lambda;
+  while (tl - r0[0] > 180) tl -= 360;
+  while (tl - r0[0] < -180) tl += 360;
+  const target = [tl, Math.max(-85, Math.min(85, -phi)), 0];
+  const i = d3.interpolate(r0, target);
+  svg.transition('rot').duration(800).ease(d3.easeCubicInOut)
+    .tween('rotate', () => t => { projection.rotate(i(t)); redrawAll(); });
+}
+
+function resetZoom() {
+  if (!ready) return;
+  if (mapMode === 'flat') {
+    svg.transition().duration(600).call(zoom.transform, d3.zoomIdentity);
+  } else {
+    const r0 = projection.rotate();
+    let tl = GLOBE_ROT0[0];
+    while (tl - r0[0] > 180) tl -= 360;
+    while (tl - r0[0] < -180) tl += 360;
+    const iR = d3.interpolate(r0, [tl, GLOBE_ROT0[1], 0]);
+    const iS = d3.interpolate(projection.scale(), globeScaleDefault);
+    svg.transition('rot').duration(600)
+      .tween('reset', () => t => { projection.rotate(iR(t)); projection.scale(iS(t)); redrawAll(); });
+  }
+}
+
+function zoomBy(k) {
+  if (!ready) return;
+  if (mapMode === 'flat') {
+    svg.transition().duration(300).call(zoom.scaleBy, k);
+  } else {
+    const s0 = projection.scale();
+    const s1 = Math.max(globeScaleDefault * 0.7, Math.min(globeScaleDefault * 3, s0 * k));
+    svg.transition('zoomGlobe').duration(250).tween('scale', () => {
+      const i = d3.interpolate(s0, s1);
+      return t => { projection.scale(i(t)); redrawAll(); };
+    });
+  }
+}
+
 function clearFlash() { if (paths) paths.classed('flash-correct', false).classed('flash-wrong', false); }
 function stopTimer() { if (timerId) { clearInterval(timerId); timerId = null; } }
 
@@ -459,11 +591,14 @@ function setMode(m) {
 
 function showExplorePrompt() {
   const n = Object.keys(DB).filter(k => featureByKey[k]).length;
+  const hint = mapMode === 'globe'
+    ? '🌐 Перетаскивай, чтобы вращать глобус · колёсико — масштаб'
+    : '🖱️ Колёсико — масштаб · перетаскивание — перемещение';
   panel.innerHTML = `
     <div class="fade">
       <h2>🧭 Исследование</h2>
-      <p>Наводи на страны и кликай, чтобы узнать название, столицу и флаг. Карта приблизится сама.</p>
-      <p class="dim">🖱️ Колёсико — масштаб · перетаскивание — перемещение</p>
+      <p>Наводи на страны и кликай, чтобы узнать название, столицу и флаг. Карта сама приблизится к стране.</p>
+      <p class="dim">${hint}</p>
       <p class="dim">В базе <b>${n}</b> стран и территорий.</p>
       <button class="btn primary" onclick="setMode('setup')">🎯 Сыграть в викторину</button>
     </div>`;
