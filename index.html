@@ -26,7 +26,7 @@
   }
   #viewport path { vector-effect: non-scaling-stroke; }
   #countries path { cursor: pointer; transition: filter .15s; }
-  #countries path:hover { filter: brightness(1.6); }
+  #countries path:hover { filter: brightness(1.4); }
   .flash-correct { fill: #10b981 !important; }
   .flash-wrong { fill: #f43f5e !important; }
 
@@ -75,6 +75,7 @@
     border: 1px solid rgba(255,255,255,.09); border-radius: 22px; padding: 22px;
     box-shadow: 0 24px 60px rgba(0,0,0,.5);
     max-height: calc(100vh - 32px); overflow-y: auto;
+    transition: transform .35s cubic-bezier(.2,.8,.2,1);
   }
   .panel::-webkit-scrollbar { width: 6px; }
   .panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 99px; }
@@ -190,29 +191,28 @@
   @media (max-width: 700px) {
     .hud { top: 10px; left: 10px; gap: 8px; }
     .logo { font-size: 15px; padding: 8px 14px; }
-    .mode-btn { padding: 8px 12px; font-size: 13px; }
-    .view-btn { padding: 6px 10px; font-size: 12px; }
+    .mode-btn { padding: 10px 14px; font-size: 14px; }
+    .view-btn { padding: 8px 12px; font-size: 13px; }
     .zoom-controls { bottom: auto; top: 42%; right: 10px; }
-    .zoom-controls button { width: 40px; height: 40px; font-size: 18px; }
-    .q-target { font-size: 24px; }
+    .zoom-controls button { width: 44px; height: 44px; font-size: 20px; }
+    .q-target { font-size: 26px; }
 
     /* Плашка-шторка снизу */
     .panel {
       top: auto; bottom: 0; left: 0; right: 0; width: 100%;
-      max-height: 70vh; padding: 0 18px 18px;
+      max-height: 75vh; padding: 0 18px 18px;
       border-radius: 22px 22px 0 0;
-      transition: transform .35s cubic-bezier(.2,.8,.2,1);
-      transform: translateY(calc(100% - 56px));
+      transform: translateY(calc(100% - 60px));
     }
     .panel.expanded { transform: translateY(0); }
     .panel-handle { display: block; }
     .panel-content { opacity: 0; pointer-events: none; transition: opacity .2s .1s; }
     .panel.expanded .panel-content { opacity: 1; pointer-events: auto; }
     .panel h2 { font-size: 20px; }
-    .panel p { font-size: 14px; }
-    .chip { padding: 8px 12px; font-size: 13px; }
-    .btn { padding: 10px 16px; font-size: 14px; }
-    .big-score { font-size: 46px; }
+    .panel p { font-size: 15px; }
+    .chip { padding: 10px 14px; font-size: 14px; }
+    .btn { padding: 12px 18px; font-size: 15px; }
+    .big-score { font-size: 50px; }
   }
 </style>
 </head>
@@ -221,8 +221,8 @@
 <svg id="map" viewBox="0 0 960 500" preserveAspectRatio="xMidYMid meet">
   <defs>
     <radialGradient id="oceanGrad" cx="50%" cy="45%" r="75%">
-      <stop offset="0" stop-color="#10233f"/>
-      <stop offset="1" stop-color="#060b16"/>
+      <stop offset="0" stop-color="#1a4d6e"/>
+      <stop offset="1" stop-color="#0f2d47"/>
     </radialGradient>
     <filter id="glow" x="-25%" y="-25%" width="150%" height="150%">
       <feGaussianBlur stdDeviation="7"/>
@@ -244,7 +244,7 @@
 </div>
 
 <div class="panel" id="panel">
-  <div class="panel-handle" id="panel-handle" onclick="togglePanel()">
+  <div class="panel-handle" id="panel-handle">
     <div class="panel-handle-bar"></div>
     <div class="panel-handle-title" id="panel-handle-title">🧭 Исследование</div>
   </div>
@@ -403,6 +403,7 @@ let timerId = null, timeLeft = 0, advanceTimer = null;
 const tooltip = document.getElementById('tooltip');
 const panel = document.getElementById('panel');
 const panelContent = document.getElementById('panel-content');
+const panelHandle = document.getElementById('panel-handle');
 const panelHandleTitle = document.getElementById('panel-handle-title');
 
 function isMobile() { return window.innerWidth <= 700; }
@@ -440,7 +441,6 @@ function poolFor(level) {
   return Object.keys(DB).filter(k => featureByKey[k] && (level === 'world' || DB[k].level === level));
 }
 
-// Обновление заголовка свёрнутой плашки на мобильных
 function setHandleTitle(text) {
   if (panelHandleTitle) panelHandleTitle.textContent = text;
 }
@@ -452,6 +452,39 @@ function togglePanel() {
 function collapsePanel() {
   if (isMobile()) panel.classList.remove('expanded');
 }
+
+// Swipe-to-dismiss для плашки
+let touchStartY = 0;
+let touchCurrentY = 0;
+let isSwiping = false;
+
+panelHandle.addEventListener('touchstart', (e) => {
+  touchStartY = e.touches[0].clientY;
+  touchCurrentY = touchStartY;
+  isSwiping = false;
+}, { passive: true });
+
+panelHandle.addEventListener('touchmove', (e) => {
+  touchCurrentY = e.touches[0].clientY;
+  const dy = touchCurrentY - touchStartY;
+  if (dy > 10) {
+    isSwiping = true;
+    panel.style.transform = `translateY(${dy}px)`;
+  }
+}, { passive: true });
+
+panelHandle.addEventListener('touchend', () => {
+  const dy = touchCurrentY - touchStartY;
+  if (isSwiping && dy > 80) {
+    panel.classList.remove('expanded');
+  }
+  panel.style.transform = '';
+  touchStartY = 0;
+  touchCurrentY = 0;
+  isSwiping = false;
+});
+
+panelHandle.addEventListener('click', togglePanel);
 
 init();
 
@@ -492,8 +525,8 @@ async function init() {
     .selectAll('path')
     .data(countries.features)
     .join('path')
-    .attr('fill', d => DB[featureKey(d)] ? '#1e2a4d' : '#131b31')
-    .attr('stroke', '#070d1c')
+    .attr('fill', d => DB[featureKey(d)] ? '#5a8f6a' : '#4a6b5a')
+    .attr('stroke', '#2d4a3a')
     .attr('stroke-width', 0.6)
     .on('click', (event, d) => {
       if (mode === 'explore') { showCountryCard(featureKey(d), d); zoomTo(d); }
@@ -510,20 +543,48 @@ async function init() {
     .on('zoom', event => viewport.attr('transform', event.transform));
   svg.call(zoom);
 
-  // Глобус: drag с поддержкой touch
+  // Глобус: drag с поддержкой touch, без блокировки клика
   globeDrag = d3.drag()
+    .clickDistance(5)
     .on('start', function(event) {
       svg.interrupt();
-      if (event.sourceEvent) event.sourceEvent.preventDefault();
     })
     .on('drag', function(event) {
-      if (event.sourceEvent) event.sourceEvent.preventDefault();
       const k = 57.2958 / projection.scale();
       const r = projection.rotate();
       const phi = Math.max(-85, Math.min(85, r[1] - event.dy * k));
       projection.rotate([r[0] + event.dx * k, phi, 0]);
       redrawAll();
     });
+
+  // Pinch-to-zoom для глобуса
+  let touchStartDist = 0;
+  let touchStartScale = 0;
+
+  svg.on('touchstart.pinch', function(event) {
+    if (event.touches.length === 2) {
+      event.preventDefault();
+      touchStartDist = getDistance(event.touches[0], event.touches[1]);
+      touchStartScale = projection.scale();
+    }
+  });
+
+  svg.on('touchmove.pinch', function(event) {
+    if (event.touches.length === 2) {
+      event.preventDefault();
+      const dist = getDistance(event.touches[0], event.touches[1]);
+      const scale = touchStartScale * (dist / touchStartDist);
+      const newScale = Math.max(globeScaleDefault * 0.7, Math.min(globeScaleDefault * 3, scale));
+      projection.scale(newScale);
+      redrawAll();
+    }
+  });
+
+  function getDistance(t1, t2) {
+    const dx = t1.clientX - t2.clientX;
+    const dy = t1.clientY - t2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
 
   ready = true;
   setMode('explore');
@@ -546,7 +607,8 @@ function setMapMode(m) {
 
   if (m === 'flat') {
     svg.on('.drag', null);
-    svg.on('wheel.globe', null);
+    svg.on('touchstart.pinch', null);
+    svg.on('touchmove.pinch', null);
     projection = d3.geoNaturalEarth1().fitExtent([[10, 10], [W - 10, H - 10]], { type: 'Sphere' });
     haloPath.style('display', 'none');
     svg.call(zoom);
@@ -560,22 +622,10 @@ function setMapMode(m) {
     projection.rotate(GLOBE_ROT0);
     haloPath.style('display', null);
     svg.call(globeDrag);
-    svg.on('wheel.globe', globeWheel, { passive: false });
   }
   path = d3.geoPath(projection);
   redrawAll();
   if (mode === 'explore') showExplorePrompt();
-}
-
-function globeWheel(event) {
-  event.preventDefault();
-  const k = event.deltaY < 0 ? 1.15 : 1 / 1.15;
-  const s0 = projection.scale();
-  const s1 = Math.max(globeScaleDefault * 0.7, Math.min(globeScaleDefault * 3, s0 * k));
-  svg.transition('zoomGlobe').duration(200).tween('scale', () => {
-    const i = d3.interpolate(s0, s1);
-    return t => { projection.scale(i(t)); redrawAll(); };
-  });
 }
 
 function moveTooltip(event, d) {
@@ -659,7 +709,7 @@ function setMode(m) {
 function showExplorePrompt() {
   const n = Object.keys(DB).filter(k => featureByKey[k]).length;
   const hint = mapMode === 'globe'
-    ? '🌐 Перетаскивай, чтобы вращать глобус · колёсико — масштаб'
+    ? '🌐 Перетаскивай, чтобы вращать глобус · щипок — масштаб'
     : '🖱️ Колёсико — масштаб · перетаскивание — перемещение';
   panelContent.innerHTML = `
     <div class="fade">
