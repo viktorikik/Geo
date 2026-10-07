@@ -34,8 +34,6 @@ export const QUESTION_TYPES = ['name', 'flag', 'capital'];
 export const THEMES = ['dark', 'light', 'retro'];
 export const THEME_ICONS = { dark: '🌙', light: '☀️', retro: '🗺️' };
 
-export const NAME_TO_KEY = { Kosovo: 'XK' };
-
-// Быстрый доступ к рандомному типу вопроса
-export const getRandomQuestionType = () =>
-  QUESTION_TYPES[Math.floor(Math.random() * QUESTION_TYPES.length)];
+export function getRandomQuestionType() {
+  return QUESTION_TYPES[Math.floor(Math.random() * QUESTION_TYPES.length)];
+}
