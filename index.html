@@ -30,9 +30,9 @@
 <div class="hud">
   <div class="logo">
     🌍 Гео<span class="grad">Мастер</span>
-    <button class="icon-btn" id="sound-toggle" aria-label="Звук" title="Звук">🔊</button>
-    <button class="icon-btn" id="theme-toggle" aria-label="Тема" title="Тема">🌙</button>
-    <button class="icon-btn" id="search-btn" aria-label="Поиск" title="Поиск">🔍</button>
+    <button class="icon-btn" id="sound-toggle" aria-label="Переключить звук" title="Звук">🔊</button>
+    <button class="icon-btn" id="theme-toggle" aria-label="Сменить тему" title="Тема">🌙</button>
+    <button class="icon-btn" id="search-btn" aria-label="Открыть поиск" title="Поиск">🔍</button>
   </div>
   <div class="level-bar">
     <span id="level-icon">🌱</span>
@@ -66,36 +66,71 @@
 </div>
 
 <div class="zoom-controls">
-  <button data-zoom="in" title="Приблизить">+</button>
-  <button data-zoom="out" title="Отдалить">−</button>
-  <button data-zoom="reset" title="Весь мир">⌂</button>
+  <button data-zoom="in" title="Приблизить" aria-label="Приблизить">+</button>
+  <button data-zoom="out" title="Отдалить" aria-label="Отдалить">−</button>
+  <button data-zoom="reset" title="Весь мир" aria-label="Сбросить вид">⌂</button>
 </div>
 
 <div id="tooltip"></div>
 
-<div class="modal-overlay" id="modal-country"><div class="modal" id="modal-country-content"></div></div>
-<div class="modal-overlay" id="modal-achievements"><div class="modal">
-  <div class="modal-header"><h2>🏆 Ачивки</h2><button class="close-btn" data-close="achievements">✕</button></div>
-  <div id="achievements-content"></div>
-</div></div>
-<div class="modal-overlay" id="modal-stats"><div class="modal">
-  <div class="modal-header"><h2>📊 Статистика</h2><button class="close-btn" data-close="stats">✕</button></div>
-  <div id="stats-content"></div>
-</div></div>
-<div class="modal-overlay" id="modal-daily"><div class="modal">
-  <div class="modal-header"><h2>📋 Задания на сегодня</h2><button class="close-btn" data-close="daily">✕</button></div>
-  <div id="daily-content"></div>
-</div></div>
-<div class="modal-overlay" id="modal-search"><div class="modal">
-  <div class="modal-header"><h2>🔍 Поиск страны</h2><button class="close-btn" data-close="search">✕</button></div>
-  <input class="search-input" id="search-input" placeholder="Начни вводить название…">
-  <div class="search-results" id="search-results"></div>
-</div></div>
-<div class="modal-overlay" id="modal-compare"><div class="modal">
-  <div class="modal-header"><h2>⚖️ Сравнение</h2><button class="close-btn" data-close="compare">✕</button></div>
-  <div id="compare-content"></div>
-</div></div>
-<div class="modal-overlay" id="modal-onboarding"><div class="modal" id="modal-onboarding-content"></div></div>
+<div class="modal-overlay" id="modal-country">
+  <div class="modal" id="modal-country-content"></div>
+</div>
+
+<div class="modal-overlay" id="modal-achievements">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>🏆 Ачивки</h2>
+      <button class="close-btn" data-close="achievements" aria-label="Закрыть">✕</button>
+    </div>
+    <div id="achievements-content"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-stats">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>📊 Статистика</h2>
+      <button class="close-btn" data-close="stats" aria-label="Закрыть">✕</button>
+    </div>
+    <div id="stats-content"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-daily">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>📋 Задания на сегодня</h2>
+      <button class="close-btn" data-close="daily" aria-label="Закрыть">✕</button>
+    </div>
+    <div id="daily-content"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-search">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>🔍 Поиск страны</h2>
+      <button class="close-btn" data-close="search" aria-label="Закрыть">✕</button>
+    </div>
+    <input class="search-input" id="search-input" placeholder="Начни вводить название…">
+    <div class="search-results" id="search-results"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-compare">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>⚖️ Сравнение</h2>
+      <button class="close-btn" data-close="compare" aria-label="Закрыть">✕</button>
+    </div>
+    <div id="compare-content"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-onboarding">
+  <div class="modal" id="modal-onboarding-content"></div>
+</div>
 
 <div class="toast-container" id="toast-container"></div>
 
