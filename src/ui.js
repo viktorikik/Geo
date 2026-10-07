@@ -21,7 +21,6 @@ export function showToast(icon, title, description, duration = 3200) {
   }, duration);
 }
 
-// Любой модуль может вызвать emit('toast', {...})
 on('toast', ({ icon, title, desc, duration }) => showToast(icon, title, desc, duration));
 
 /* ============================================================
@@ -60,22 +59,24 @@ export function closeModal(name) {
   if (!overlay) return;
   overlay.classList.remove('show');
   overlay.removeEventListener('keydown', trapFocus);
-  if (lastFocused?.focus) { lastFocused.focus(); lastFocused = null; }
+  if (lastFocused && lastFocused.focus) {
+    lastFocused.focus();
+    lastFocused = null;
+  }
 }
 
 export function initModals() {
-  // Делегирование: клик по data-close закрывает модалку
   document.querySelectorAll('.modal-overlay').forEach(overlay => {
     overlay.addEventListener('click', (e) => {
-      // Клик по фону — закрываем (кроме onboarding)
       if (e.target === overlay && !overlay.id.includes('onboarding')) {
         const name = overlay.id.replace('modal-', '');
         closeModal(name);
       }
     });
   });
-  document.querySelectorAll('[data-close]').forEach(btn => {
-    btn.addEventListener('click', () => closeModal(btn.dataset.close));
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-close]');
+    if (b) closeModal(b.dataset.close);
   });
 }
 
@@ -119,7 +120,7 @@ export function initParticles() {
 }
 
 /* ============================================================
-   PANEL (мобильный)
+   PANEL
    ============================================================ */
 export function initPanel() {
   const panel = document.getElementById('panel');
@@ -151,6 +152,10 @@ export function initPanel() {
 
 export function collapsePanel() {
   if (innerWidth <= 700) document.getElementById('panel').classList.remove('expanded');
+}
+
+export function expandPanel() {
+  if (innerWidth <= 700) document.getElementById('panel').classList.add('expanded');
 }
 
 export function setPanelHandleTitle(text) {
