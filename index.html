@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🌍 ГеоМастер — интерактивная карта мира</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌍</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,7 +11,7 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
-  
+
   :root {
     --bg-primary: #070b16;
     --bg-gradient-1: rgba(139,92,246,.16);
@@ -36,7 +36,7 @@
     --overlay-bg: rgba(0,0,0,.6);
     --skeleton-bg: rgba(255,255,255,.06);
   }
-  
+
   [data-theme="light"] {
     --bg-primary: #f0f4f8;
     --bg-gradient-1: rgba(139,92,246,.08);
@@ -59,7 +59,7 @@
     --overlay-bg: rgba(0,0,0,.35);
     --skeleton-bg: rgba(0,0,0,.06);
   }
-  
+
   [data-theme="retro"] {
     --bg-primary: #2c2416;
     --bg-gradient-1: rgba(180,140,80,.12);
@@ -84,7 +84,7 @@
     --overlay-bg: rgba(0,0,0,.6);
     --skeleton-bg: rgba(180,140,80,.08);
   }
-  
+
   body {
     font-family: 'Manrope', 'Segoe UI', system-ui, sans-serif;
     color: var(--text-primary);
@@ -95,7 +95,7 @@
     touch-action: none;
     transition: background .4s ease;
   }
-  
+
   #particles { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
   #map { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; z-index: 1; }
   #viewport path { vector-effect: non-scaling-stroke; }
@@ -121,7 +121,7 @@
     display: flex; align-items: center; justify-content: center; color: var(--text-primary);
   }
   .icon-btn:hover { background: var(--btn-hover); transform: translateY(-1px); }
-  
+
   .level-bar {
     display: flex; align-items: center; gap: 8px;
     background: var(--panel-bg); backdrop-filter: blur(14px);
@@ -130,7 +130,7 @@
   }
   .level-bar .track { width: 80px; height: 5px; border-radius: 99px; background: var(--btn-bg); overflow: hidden; }
   .level-bar .fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--accent-1), var(--accent-2)); transition: width .5s; }
-  
+
   .modes { display: flex; gap: 6px; flex-wrap: wrap; }
   .mode-btn {
     padding: 8px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; transition: .2s;
@@ -176,6 +176,8 @@
 
   .fade { animation: fadeUp .3s ease both; }
   @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  .hidden { display: none !important; }
 
   .section-label { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; opacity: .45; margin: 14px 0 6px; font-weight: 700; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -223,6 +225,20 @@
     background: rgba(139,92,246,.12); border: 1px solid rgba(139,92,246,.2);
     font-size: 13px; margin: 8px 0; color: var(--text-secondary);
   }
+
+  /* Поле ввода текстового ответа */
+  .answer-input-wrap { display: flex; gap: 6px; margin: 10px 0; }
+  .answer-input {
+    flex: 1; padding: 12px 14px; border-radius: 10px;
+    border: 1px solid var(--btn-border); background: var(--btn-bg);
+    color: var(--text-primary); font-size: 16px; font-family: inherit;
+    outline: none; transition: .2s;
+  }
+  .answer-input:focus {
+    border-color: var(--accent-1);
+    box-shadow: 0 0 0 3px rgba(139,92,246,.15);
+  }
+  .answer-input:disabled { opacity: .55; }
 
   .btn-row { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
   .btn {
@@ -282,7 +298,6 @@
     max-width: 80%; margin: 0 auto;
   }
 
-  /* Модалки */
   .modal-overlay {
     position: fixed; inset: 0; z-index: 100;
     background: var(--overlay-bg); backdrop-filter: blur(6px);
@@ -311,7 +326,6 @@
   }
   .close-btn:hover { background: var(--btn-hover); }
 
-  /* Карточка страны */
   .country-card { text-align: center; }
   .country-card h2 { font-size: 24px; margin: 8px 0 4px; }
   .country-card .facts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 12px 0; text-align: left; }
@@ -324,17 +338,14 @@
     font-size: 13px; line-height: 1.4; margin: 10px 0; text-align: left;
   }
 
-  /* Обучение */
   .learn-card { text-align: center; padding: 10px 0; }
   .learn-card .nav { display: flex; justify-content: center; gap: 12px; margin-top: 14px; }
 
-  /* Сравнение */
   .compare-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
   .compare-col { text-align: center; padding: 12px; border-radius: 12px; background: var(--btn-bg); border: 1px solid var(--btn-border); }
   .compare-col h3 { font-size: 16px; margin: 6px 0; }
   .compare-col .cap { font-size: 12px; opacity: .7; margin: 3px 0; }
 
-  /* Поиск */
   .search-input {
     width: 100%; padding: 12px 16px; border-radius: 12px;
     border: 1px solid var(--btn-border); background: var(--btn-bg); color: var(--text-primary);
@@ -348,7 +359,6 @@
   }
   .search-result-item:hover { background: var(--btn-hover); }
 
-  /* Ежедневные задания */
   .daily-list { display: flex; flex-direction: column; gap: 8px; }
   .daily-item {
     padding: 12px; border-radius: 12px; background: var(--btn-bg);
@@ -362,7 +372,6 @@
   .daily-desc { font-size: 12px; opacity: .6; }
   .daily-reward { font-size: 12px; font-weight: 700; color: var(--accent-1); }
 
-  /* Ачивки */
   .achievements-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
   .ach-card {
     padding: 12px 8px; border-radius: 12px; text-align: center;
@@ -372,13 +381,25 @@
     background: linear-gradient(135deg, rgba(139,92,246,.12), rgba(6,182,212,.12));
     border-color: rgba(139,92,246,.25); box-shadow: 0 3px 10px rgba(139,92,246,.15);
   }
-  .ach-card.locked { opacity: .45; filter: grayscale(.6); }
+  .ach-card.locked { opacity: .65; filter: grayscale(.4); }
   .ach-icon { font-size: 28px; margin-bottom: 4px; }
   .ach-name { font-size: 12px; font-weight: 700; margin-bottom: 2px; }
   .ach-desc { font-size: 10px; opacity: .65; line-height: 1.3; }
   .ach-lock { position: absolute; top: 4px; right: 4px; font-size: 10px; opacity: .5; }
+  .ach-bar {
+    height: 3px; border-radius: 99px; background: var(--btn-border);
+    margin-top: 6px; overflow: hidden;
+  }
+  .ach-bar-fill {
+    height: 100%; border-radius: 99px;
+    background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
+    transition: width .5s;
+  }
+  .ach-bar-text {
+    font-size: 9px; opacity: .55; margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
 
-  /* Статистика */
   .stats-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 14px; }
   .stat-box { padding: 10px 6px; border-radius: 10px; text-align: center; background: var(--btn-bg); border: 1px solid var(--btn-border); }
   .stat-value {
@@ -407,7 +428,6 @@
   .empty-state { text-align: center; padding: 24px 10px; opacity: .5; }
   .empty-state .big-emoji { font-size: 40px; margin-bottom: 8px; }
 
-  /* Скелетон */
   .skeleton { display: flex; flex-direction: column; gap: 12px; padding: 20px; }
   .skeleton-block { height: 20px; border-radius: 8px; background: var(--skeleton-bg); animation: skeletonPulse 1.5s ease infinite; }
   .skeleton-block.w60 { width: 60%; }
@@ -416,7 +436,6 @@
   .skeleton-block.h40 { height: 40px; }
   @keyframes skeletonPulse { 0%, 100% { opacity: .4; } 50% { opacity: .8; } }
 
-  /* Onboarding */
   .onboarding { text-align: center; }
   .onboarding h2 { font-size: 26px; margin-bottom: 8px; }
   .onboarding p { font-size: 15px; opacity: .7; margin-bottom: 16px; }
@@ -425,7 +444,6 @@
   .onboarding-dot { width: 8px; height: 8px; border-radius: 99px; background: var(--btn-border); transition: .2s; }
   .onboarding-dot.active { background: var(--accent-1); width: 20px; }
 
-  /* Тосты */
   .toast-container {
     position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
     z-index: 200; display: flex; flex-direction: column; gap: 6px;
@@ -469,7 +487,7 @@
     .panel-handle { display: block; }
     .panel-content { opacity: 0; pointer-events: none; transition: opacity .2s .1s; }
     .panel.expanded .panel-content { opacity: 1; pointer-events: auto; }
-    
+
     .modal { padding: 16px; max-width: 95vw; }
     .achievements-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
     .stats-summary { grid-template-columns: repeat(3, 1fr); gap: 4px; }
@@ -498,9 +516,9 @@
 <div class="hud">
   <div class="logo">
     🌍 Гео<span class="grad">Мастер</span>
-    <button class="icon-btn" id="sound-toggle" onclick="toggleSound()" title="Звук">🔊</button>
-    <button class="icon-btn" id="theme-toggle" onclick="cycleTheme()" title="Тема">🌙</button>
-    <button class="icon-btn" onclick="openSearch()" title="Поиск">🔍</button>
+    <button class="icon-btn" id="sound-toggle" onclick="toggleSound()" aria-label="Переключить звук" title="Звук">🔊</button>
+    <button class="icon-btn" id="theme-toggle" onclick="cycleTheme()" aria-label="Сменить тему" title="Тема">🌙</button>
+    <button class="icon-btn" onclick="openSearch()" aria-label="Открыть поиск" title="Поиск">🔍</button>
   </div>
   <div class="level-bar">
     <span id="level-icon">🌱</span>
@@ -534,14 +552,13 @@
 </div>
 
 <div class="zoom-controls">
-  <button onclick="zoomBy(1.6)" title="Приблизить">+</button>
-  <button onclick="zoomBy(1/1.6)" title="Отдалить">−</button>
-  <button onclick="resetZoom()" title="Весь мир">⌂</button>
+  <button onclick="zoomBy(1.6)" title="Приблизить" aria-label="Приблизить">+</button>
+  <button onclick="zoomBy(1/1.6)" title="Отдалить" aria-label="Отдалить">−</button>
+  <button onclick="resetZoom()" title="Весь мир" aria-label="Сбросить вид">⌂</button>
 </div>
 
 <div id="tooltip"></div>
 
-<!-- Модалки -->
 <div class="modal-overlay" id="modal-country" onclick="if(event.target===this)closeModal('country')">
   <div class="modal" id="modal-country-content"></div>
 </div>
@@ -550,7 +567,7 @@
   <div class="modal">
     <div class="modal-header">
       <h2>🏆 Ачивки</h2>
-      <button class="close-btn" onclick="closeModal('achievements')">✕</button>
+      <button class="close-btn" onclick="closeModal('achievements')" aria-label="Закрыть">✕</button>
     </div>
     <div id="achievements-content"></div>
   </div>
@@ -560,7 +577,7 @@
   <div class="modal">
     <div class="modal-header">
       <h2>📊 Статистика</h2>
-      <button class="close-btn" onclick="closeModal('stats')">✕</button>
+      <button class="close-btn" onclick="closeModal('stats')" aria-label="Закрыть">✕</button>
     </div>
     <div id="stats-content"></div>
   </div>
@@ -570,7 +587,7 @@
   <div class="modal">
     <div class="modal-header">
       <h2>📋 Задания на сегодня</h2>
-      <button class="close-btn" onclick="closeModal('daily')">✕</button>
+      <button class="close-btn" onclick="closeModal('daily')" aria-label="Закрыть">✕</button>
     </div>
     <div id="daily-content"></div>
   </div>
@@ -580,7 +597,7 @@
   <div class="modal">
     <div class="modal-header">
       <h2>🔍 Поиск страны</h2>
-      <button class="close-btn" onclick="closeModal('search')">✕</button>
+      <button class="close-btn" onclick="closeModal('search')" aria-label="Закрыть">✕</button>
     </div>
     <input class="search-input" id="search-input" placeholder="Начни вводить название…" oninput="doSearch(this.value)">
     <div class="search-results" id="search-results"></div>
@@ -591,13 +608,13 @@
   <div class="modal">
     <div class="modal-header">
       <h2>⚖️ Сравнение</h2>
-      <button class="close-btn" onclick="closeModal('compare')">✕</button>
+      <button class="close-btn" onclick="closeModal('compare')" aria-label="Закрыть">✕</button>
     </div>
     <div id="compare-content"></div>
   </div>
 </div>
 
-<div class="modal-overlay" id="modal-onboarding" onclick="if(event.target===this)closeOnboarding()">
+<div class="modal-overlay" id="modal-onboarding">
   <div class="modal" id="modal-onboarding-content"></div>
 </div>
 
@@ -730,7 +747,6 @@ const REGION_DATA = {
   }
 };
 
-// База данных всех стран
 const COUNTRIES_DB = {};
 for (const [level, list] of Object.entries(REGION_DATA)) {
   for (const [id, data] of Object.entries(list)) {
@@ -743,7 +759,6 @@ for (const [level, list] of Object.entries(REGION_DATA)) {
   }
 }
 
-// Факты о странах: [валюта, язык, население, площадь, интересный факт]
 const COUNTRY_FACTS = {
   "643": ["Рубль ₽", "Русский", "146 млн", "17.1 млн км²", "Самая большая страна мира, 11 часовых поясов"],
   "840": ["Доллар $", "Английский", "331 млн", "9.8 млн км²", "50 штатов, третья по площади страна"],
@@ -786,7 +801,6 @@ const COUNTRY_FACTS = {
   "012": ["Динар DZD", "Арабский, Берберский", "44 млн", "2.4 млн км²", "Крупнейшая страна Африки по площади"]
 };
 
-// ============ ДОПОЛНИТЕЛЬНЫЕ КОНСТАНТЫ ============
 const NAME_TO_KEY = { "Kosovo": "XK" };
 const QUESTION_TYPES = ['name', 'flag', 'capital'];
 const getRandomQuestionType = () => QUESTION_TYPES[Math.floor(Math.random() * QUESTION_TYPES.length)];
@@ -805,8 +819,10 @@ const STORAGE_KEYS = {
 const loadFromStorage = (key, defaultValue) => {
   try {
     const value = localStorage.getItem(key);
-    return value ? JSON.parse(value) : defaultValue;
+    if (!value) return defaultValue;
+    return JSON.parse(value);
   } catch (e) {
+    try { localStorage.removeItem(key); } catch (_) {}
     return defaultValue;
   }
 };
@@ -819,26 +835,64 @@ const saveToStorage = (key, value) => {
 
 // ============ АЧИВКИ ============
 const ACHIEVEMENTS = [
-  { id: 'first_game', icon: '🎮', name: 'Первый шаг', desc: 'Сыграй первую игру', check: s => s.gamesPlayed >= 1 },
-  { id: 'perfect', icon: '🏆', name: 'Идеально', desc: '10/10 в любом режиме', check: s => s.perfectGames >= 1 },
-  { id: 'blitz_master', icon: '⚡', name: 'Молниеносный', desc: '10/10 в блице', check: s => s.blitzPerfect >= 1 },
-  { id: 'five_games', icon: '🎯', name: 'Марафонец', desc: 'Сыграй 5 игр', check: s => s.gamesPlayed >= 5 },
-  { id: 'twenty_games', icon: '🔥', name: 'Завсегдатай', desc: 'Сыграй 20 игр', check: s => s.gamesPlayed >= 20 },
-  { id: 'explorer_20', icon: '🧭', name: 'Любопытный', desc: 'Изучи 20 стран', check: s => s.exploredCountries.length >= 20 },
-  { id: 'explorer_50', icon: '🗺️', name: 'Путешественник', desc: 'Изучи 50 стран', check: s => s.exploredCountries.length >= 50 },
-  { id: 'globe_fan', icon: '🌐', name: 'Глобусник', desc: 'Включи глобус', check: s => s.globeSwitches >= 1 },
-  { id: 'continent_europe', icon: '🏰', name: 'Европеец', desc: '10/10 в Европе', check: s => s.continentsPerfected?.europe },
-  { id: 'continent_asia', icon: '🏮', name: 'Азиат', desc: '10/10 в Азии', check: s => s.continentsPerfected?.asia },
-  { id: 'continent_africa', icon: '🦁', name: 'Африканец', desc: '10/10 в Африке', check: s => s.continentsPerfected?.africa },
-  { id: 'continent_america', icon: '🗽', name: 'Американец', desc: '10/10 в Америке', check: s => s.continentsPerfected?.america },
-  { id: 'continent_oceania', icon: '🏝️', name: 'Океанолог', desc: '10/10 в Океании', check: s => s.continentsPerfected?.oceania },
-  { id: 'all_continents', icon: '👑', name: 'Король географии', desc: '10/10 на всех континентах', check: s => {
-    const c = s.continentsPerfected || {};
-    return c.europe && c.asia && c.africa && c.america && c.oceania;
-  }},
-  { id: 'streak_5', icon: '🔥', name: 'На огне', desc: 'Серия 5 правильных', check: s => s.maxStreak >= 5 },
-  { id: 'streak_10', icon: '💎', name: 'Неудержимый', desc: 'Серия 10 правильных', check: s => s.maxStreak >= 10 },
-  { id: 'collector_5', icon: '🏅', name: 'Коллекционер', desc: 'Собери 5 ачивок', check: (s, unlocked) => unlocked.size >= 5 }
+  { id: 'first_game', icon: '🎮', name: 'Первый шаг', desc: 'Сыграй первую игру',
+    progress: s => [Math.min(s.gamesPlayed, 1), 1],
+    check: s => s.gamesPlayed >= 1 },
+  { id: 'perfect', icon: '🏆', name: 'Идеально', desc: '10/10 в любом режиме',
+    progress: s => [Math.min(s.perfectGames, 1), 1],
+    check: s => s.perfectGames >= 1 },
+  { id: 'blitz_master', icon: '⚡', name: 'Молниеносный', desc: '10/10 в блице',
+    progress: s => [Math.min(s.blitzPerfect, 1), 1],
+    check: s => s.blitzPerfect >= 1 },
+  { id: 'five_games', icon: '🎯', name: 'Марафонец', desc: 'Сыграй 5 игр',
+    progress: s => [Math.min(s.gamesPlayed, 5), 5],
+    check: s => s.gamesPlayed >= 5 },
+  { id: 'twenty_games', icon: '🔥', name: 'Завсегдатай', desc: 'Сыграй 20 игр',
+    progress: s => [Math.min(s.gamesPlayed, 20), 20],
+    check: s => s.gamesPlayed >= 20 },
+  { id: 'explorer_20', icon: '🧭', name: 'Любопытный', desc: 'Изучи 20 стран',
+    progress: s => [Math.min(s.exploredCountries.length, 20), 20],
+    check: s => s.exploredCountries.length >= 20 },
+  { id: 'explorer_50', icon: '🗺️', name: 'Путешественник', desc: 'Изучи 50 стран',
+    progress: s => [Math.min(s.exploredCountries.length, 50), 50],
+    check: s => s.exploredCountries.length >= 50 },
+  { id: 'globe_fan', icon: '🌐', name: 'Глобусник', desc: 'Включи глобус',
+    progress: s => [Math.min(s.globeSwitches || 0, 1), 1],
+    check: s => s.globeSwitches >= 1 },
+  { id: 'continent_europe', icon: '🏰', name: 'Европеец', desc: '10/10 в Европе',
+    progress: s => [s.continentsPerfected?.europe ? 1 : 0, 1],
+    check: s => s.continentsPerfected?.europe },
+  { id: 'continent_asia', icon: '🏮', name: 'Азиат', desc: '10/10 в Азии',
+    progress: s => [s.continentsPerfected?.asia ? 1 : 0, 1],
+    check: s => s.continentsPerfected?.asia },
+  { id: 'continent_africa', icon: '🦁', name: 'Африканец', desc: '10/10 в Африке',
+    progress: s => [s.continentsPerfected?.africa ? 1 : 0, 1],
+    check: s => s.continentsPerfected?.africa },
+  { id: 'continent_america', icon: '🗽', name: 'Американец', desc: '10/10 в Америке',
+    progress: s => [s.continentsPerfected?.america ? 1 : 0, 1],
+    check: s => s.continentsPerfected?.america },
+  { id: 'continent_oceania', icon: '🏝️', name: 'Океанолог', desc: '10/10 в Океании',
+    progress: s => [s.continentsPerfected?.oceania ? 1 : 0, 1],
+    check: s => s.continentsPerfected?.oceania },
+  { id: 'all_continents', icon: '👑', name: 'Король географии', desc: '10/10 на всех континентах',
+    progress: s => {
+      const c = s.continentsPerfected || {};
+      const keys = ['europe', 'asia', 'africa', 'america', 'oceania'];
+      return [keys.filter(k => c[k]).length, keys.length];
+    },
+    check: s => {
+      const c = s.continentsPerfected || {};
+      return c.europe && c.asia && c.africa && c.america && c.oceania;
+    }},
+  { id: 'streak_5', icon: '🔥', name: 'На огне', desc: 'Серия 5 правильных',
+    progress: s => [Math.min(s.maxStreak || 0, 5), 5],
+    check: s => s.maxStreak >= 5 },
+  { id: 'streak_10', icon: '💎', name: 'Неудержимый', desc: 'Серия 10 правильных',
+    progress: s => [Math.min(s.maxStreak || 0, 10), 10],
+    check: s => s.maxStreak >= 10 },
+  { id: 'collector_5', icon: '🏅', name: 'Коллекционер', desc: 'Собери 5 ачивок',
+    progress: (s, unlocked) => [Math.min(unlocked ? unlocked.size : 0, 5), 5],
+    check: (s, unlocked) => unlocked.size >= 5 }
 ];
 
 // ============ СТАТИСТИКА ============
@@ -1007,8 +1061,10 @@ function updateOceanColors() {
   const style = getComputedStyle(document.documentElement);
   const ocean1 = style.getPropertyValue('--ocean-1').trim();
   const ocean2 = style.getPropertyValue('--ocean-2').trim();
-  document.querySelector('.ocean-stop-1').setAttribute('stop-color', ocean1);
-  document.querySelector('.ocean-stop-2').setAttribute('stop-color', ocean2);
+  const el1 = document.querySelector('.ocean-stop-1');
+  const el2 = document.querySelector('.ocean-stop-2');
+  if (el1) el1.setAttribute('stop-color', ocean1);
+  if (el2) el2.setAttribute('stop-color', ocean2);
 }
 
 function updateLandColors() {
@@ -1019,7 +1075,7 @@ function updateLandColors() {
   const border = style.getPropertyValue('--land-border').trim();
   const highlight = style.getPropertyValue('--land-highlight').trim();
   const highlightStroke = style.getPropertyValue('--land-highlight-stroke').trim();
-  
+
   countryPaths.each(function(d) {
     const element = d3.select(this);
     if (d.__highlighted) {
@@ -1058,7 +1114,7 @@ function updateMasteryLevelUI() {
   document.getElementById('level-fill').style.width = percent + '%';
 }
 
-// ============ HAPTIC FEEDBACK ============
+// ============ HAPTIC ============
 function vibrate(duration = 30) {
   try {
     if (navigator.vibrate) navigator.vibrate(duration);
@@ -1084,7 +1140,7 @@ function showToast(icon, title, description, duration = 3200) {
   }, duration);
 }
 
-// ============ ПРОВЕРКА АЧИВОК ============
+// ============ АЧИВКИ: ПРОВЕРКА ============
 function checkAchievements() {
   const newlyUnlocked = [];
   for (const achievement of ACHIEVEMENTS) {
@@ -1104,15 +1160,44 @@ function checkAchievements() {
   }
 }
 
-// ============ МОДАЛКИ ============
+// ============ МОДАЛКИ (с focus trap) ============
+let lastFocusedElement = null;
+
+function trapFocus(e) {
+  if (e.key !== 'Tab') return;
+  const overlay = e.currentTarget;
+  const focusable = [...overlay.querySelectorAll('button, input, [tabindex]:not([tabindex="-1"])')]
+    .filter(el => !el.disabled && el.offsetParent !== null);
+  if (!focusable.length) return;
+  const first = focusable[0], last = focusable[focusable.length - 1];
+  if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault(); last.focus();
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault(); first.focus();
+  }
+}
+
 function openModal(name) {
   playClickSound();
-  document.getElementById('modal-' + name).classList.add('show');
+  lastFocusedElement = document.activeElement;
+  const overlay = document.getElementById('modal-' + name);
+  overlay.classList.add('show');
+  overlay.addEventListener('keydown', trapFocus);
+  setTimeout(() => {
+    const focusable = overlay.querySelectorAll('button, input, [tabindex]:not([tabindex="-1"])');
+    if (focusable.length) focusable[0].focus();
+  }, 60);
 }
 
 function closeModal(name) {
   playClickSound();
-  document.getElementById('modal-' + name).classList.remove('show');
+  const overlay = document.getElementById('modal-' + name);
+  overlay.classList.remove('show');
+  overlay.removeEventListener('keydown', trapFocus);
+  if (lastFocusedElement && lastFocusedElement.focus) {
+    lastFocusedElement.focus();
+    lastFocusedElement = null;
+  }
 }
 
 // ============ ПОИСК ============
@@ -1129,15 +1214,15 @@ function doSearch(query) {
   }
   const lowerQuery = query.toLowerCase();
   const matches = Object.entries(COUNTRIES_DB)
-    .filter(([key, country]) => 
-      country.name.toLowerCase().includes(lowerQuery) || 
+    .filter(([key, country]) =>
+      country.name.toLowerCase().includes(lowerQuery) ||
       country.capital.toLowerCase().includes(lowerQuery)
     )
     .slice(0, 10);
-  
+
   results.innerHTML = matches.length === 0
     ? '<div class="dim" style="padding:12px">Ничего не найдено</div>'
-    : matches.map(([key, country]) => 
+    : matches.map(([key, country]) =>
         `<div class="search-result-item" onclick="closeModal('search');showCountryCard('${key}')">
           ${getFlagEmoji(country.flag)} ${country.name}
           <span class="dim">· ${country.capital}</span>
@@ -1150,13 +1235,13 @@ function getDailyTasks() {
   const today = new Date().toDateString();
   const saved = loadFromStorage(STORAGE_KEYS.daily, {});
   if (saved.date === today) return saved;
-  
+
   const tasks = [
     { icon: '🎯', name: 'Точный стрелок', desc: 'Ответь правильно 7 раз', target: 7, type: 'correct' },
     { icon: '🌍', name: 'Исследователь', desc: 'Изучи 5 новых стран', target: 5, type: 'explore' },
     { icon: '⚡', name: 'Быстрый ум', desc: 'Сыграй 2 блиц-игры', target: 2, type: 'blitz' }
   ];
-  
+
   const result = { date: today, tasks: tasks.map(t => ({ ...t, progress: 0, done: false })) };
   saveToStorage(STORAGE_KEYS.daily, result);
   return result;
@@ -1194,14 +1279,14 @@ function renderDailyTasks() {
   `;
 }
 
-// ============ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ============
+// ============ ВСПОМОГАТЕЛЬНЫЕ ============
 function getFlagEmoji(code) {
   return code.toUpperCase().replace(/./g, char => String.fromCodePoint(127397 + char.charCodeAt(0)));
 }
 
 function getFlagImage(code, className = 'flag-wrap') {
   return `<div class="${className}">
-    <img src="https://flagcdn.com/w320/${code}.png" alt="" 
+    <img src="https://flagcdn.com/w320/${code}.png" alt=""
          onerror="this.outerHTML='<div class=q-emoji>${getFlagEmoji(code)}</div>'">
   </div>`;
 }
@@ -1211,16 +1296,59 @@ function saveRecords(records) { saveToStorage(STORAGE_KEYS.records, records); }
 function getRecordKey() { return currentQuiz.level + (currentQuiz.blitz ? '-blitz' : '-classic'); }
 
 function getCountryPoolForLevel(level) {
-  return Object.keys(COUNTRIES_DB).filter(key => 
+  return Object.keys(COUNTRIES_DB).filter(key =>
     featureByKey[key] && (level === 'world' || COUNTRIES_DB[key].level === level)
   );
+}
+
+// ============ НЕЧЁТКОЕ СРАВНЕНИЕ ОТВЕТА ============
+function normalizeAnswer(str) {
+  return String(str)
+    .toLowerCase()
+    .replace(/ё/g, 'е')
+    .replace(/[\s\-–—.,'"`()]/g, '')
+    .replace(/й/g, 'и')
+    .trim();
+}
+
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  if (!m) return n;
+  if (!n) return m;
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+    }
+  }
+  return dp[m][n];
+}
+
+function isAnswerCorrect(userInput, country) {
+  const user = normalizeAnswer(userInput);
+  if (!user) return false;
+  const targets = [
+    normalizeAnswer(country.name),
+    normalizeAnswer(country.capital)
+  ];
+  for (const t of targets) {
+    if (!t) continue;
+    if (t === user) return true;
+    const maxDist = t.length <= 5 ? 1 : 2;
+    if (levenshtein(t, user) <= maxDist) return true;
+    if (t.length >= 6 && user.length >= 4 && t.includes(user)) return true;
+  }
+  return false;
 }
 
 // ============ КАРТОЧКА СТРАНЫ ============
 function showCountryCard(countryKey) {
   const country = COUNTRIES_DB[countryKey];
   if (!country) return;
-  
+
   const facts = COUNTRY_FACTS[countryKey];
   const factsHtml = facts ? `
     <div class="facts">
@@ -1231,17 +1359,17 @@ function showCountryCard(countryKey) {
     </div>
     <div class="fun-fact">💡 ${facts[4]}</div>
   ` : '';
-  
+
   const correct = stats.countryCorrect[countryKey] || 0;
   const errors = stats.countryErrors[countryKey] || 0;
-  const statsHtml = (correct + errors) > 0 
-    ? `<p class="dim">📊 Твои ответы: ✅ ${correct} · ❌ ${errors}</p>` 
+  const statsHtml = (correct + errors) > 0
+    ? `<p class="dim">📊 Твои ответы: ✅ ${correct} · ❌ ${errors}</p>`
     : '';
-  
+
   const level = LEVELS[country.level];
-  
+
   document.getElementById('modal-country-content').innerHTML = `
-    <button class="close-btn" onclick="closeModal('country')" style="position:absolute;top:12px;right:12px">✕</button>
+    <button class="close-btn" onclick="closeModal('country')" style="position:absolute;top:12px;right:12px" aria-label="Закрыть">✕</button>
     <div class="country-card fade">
       ${getFlagImage(country.flag, 'flag-wrap card-flag')}
       <h2>${country.name}</h2>
@@ -1255,22 +1383,22 @@ function showCountryCard(countryKey) {
       </div>
     </div>
   `;
-  
+
   openModal('country');
   trackCountryExplored(countryKey);
   updateDailyTask('explore');
 }
 
-// ============ СРАВНЕНИЕ СТРАН ============
+// ============ СРАВНЕНИЕ ============
 function openCompare(firstCountryKey) {
   const options = Object.entries(COUNTRIES_DB)
     .filter(([key]) => key !== firstCountryKey)
     .slice(0, 20);
-  
+
   document.getElementById('compare-content').innerHTML = `
     <p>Выбери вторую страну для сравнения:</p>
     <div class="chips" style="margin-top:10px">
-      ${options.map(([key, country]) => 
+      ${options.map(([key, country]) =>
         `<button class="chip" onclick="doCompare('${firstCountryKey}','${key}')">
           ${getFlagEmoji(country.flag)} ${country.name}
         </button>`
@@ -1285,7 +1413,7 @@ function doCompare(key1, key2) {
   const country2 = COUNTRIES_DB[key2];
   const facts1 = COUNTRY_FACTS[key1];
   const facts2 = COUNTRY_FACTS[key2];
-  
+
   const row = (label, value1, value2) => `
     <tr>
       <td class="dim" style="padding:4px 8px">${label}</td>
@@ -1293,7 +1421,7 @@ function doCompare(key1, key2) {
       <td style="padding:4px 8px;font-weight:700">${value2 || '—'}</td>
     </tr>
   `;
-  
+
   document.getElementById('compare-content').innerHTML = `
     <div class="compare-cols">
       <div class="compare-col">
@@ -1319,57 +1447,79 @@ function doCompare(key1, key2) {
   `;
 }
 
-// ============ ЭКСПОРТ РЕЗУЛЬТАТА ============
-function exportResult(score, total) {
+// ============ ЭКСПОРТ / ПОДЕЛИТЬСЯ ============
+function buildResultCanvas(score, total, message, masteryLevel) {
   const canvas = document.createElement('canvas');
-  canvas.width = 600;
-  canvas.height = 400;
+  canvas.width = 600; canvas.height = 400;
   const ctx = canvas.getContext('2d');
-  
+
   ctx.fillStyle = '#0f172a';
   ctx.fillRect(0, 0, 600, 400);
-  
+
   const gradient = ctx.createLinearGradient(0, 0, 600, 0);
   gradient.addColorStop(0, '#8b5cf6');
   gradient.addColorStop(1, '#06b6d4');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, 600, 6);
-  
+
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 28px Manrope, sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText('🌍 ГеоМастер', 300, 60);
-  
+
   ctx.font = 'bold 72px Manrope, sans-serif';
   ctx.fillText(`${score}/${total}`, 300, 170);
-  
-  const percent = score / total;
-  const message = percent === 1 ? 'Идеально!' : percent >= .8 ? 'Отлично!' : percent >= .5 ? 'Неплохо!' : 'Попробуй ещё!';
+
   ctx.font = '24px Manrope, sans-serif';
   ctx.fillStyle = '#94a3b8';
   ctx.fillText(message, 300, 220);
-  
-  const masteryLevel = getCurrentMasteryLevel();
+
   ctx.font = '18px Manrope, sans-serif';
   ctx.fillText(`${masteryLevel.icon} ${masteryLevel.name}`, 300, 270);
-  
+
   ctx.font = '14px Manrope, sans-serif';
   ctx.fillStyle = '#475569';
   ctx.fillText('geomaster.game', 300, 370);
-  
+  return canvas;
+}
+
+async function exportResult(score, total) {
+  const percent = score / total;
+  const message = percent === 1 ? 'Идеально!' : percent >= .8 ? 'Отлично!' : percent >= .5 ? 'Неплохо!' : 'Попробуй ещё!';
+  const masteryLevel = getCurrentMasteryLevel();
+  const shareText = `🌍 ГеоМастер: ${score}/${total} — ${message} ${masteryLevel.icon} ${masteryLevel.name}`;
+
+  if (navigator.share) {
+    try {
+      const canvas = buildResultCanvas(score, total, message, masteryLevel);
+      const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+      if (blob) {
+        const file = new File([blob], 'geomaster.png', { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], text: shareText, title: 'ГеоМастер' });
+          return;
+        }
+      }
+      await navigator.share({ text: shareText, title: 'ГеоМастер' });
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+    }
+  }
+
+  const canvas = buildResultCanvas(score, total, message, masteryLevel);
   const link = document.createElement('a');
   link.download = 'geomaster-result.png';
   link.href = canvas.toDataURL();
   link.click();
-  
   showToast('📤', 'Результат сохранён', 'Картинка скачана!');
 }
 
-// ============ РЕНДЕР АЧИВОК ============
+// ============ РЕНДЕР АЧИВОК (с прогресс-барами) ============
 function renderAchievements() {
   const total = ACHIEVEMENTS.length;
   const unlocked = ACHIEVEMENTS.filter(a => unlockedAchievements.has(a.id)).length;
-  
+
   document.getElementById('achievements-content').innerHTML = `
     <p class="dim" style="margin-bottom:12px">
       Открыто: <b style="color:var(--text-primary)">${unlocked}/${total}</b>
@@ -1377,12 +1527,24 @@ function renderAchievements() {
     <div class="achievements-grid">
       ${ACHIEVEMENTS.map(a => {
         const isUnlocked = unlockedAchievements.has(a.id);
+        let barHtml = '';
+        if (!isUnlocked && typeof a.progress === 'function') {
+          const [cur, max] = a.progress(stats, unlockedAchievements);
+          const pct = max > 0 ? Math.round(cur / max * 100) : 0;
+          barHtml = `
+            <div class="ach-bar">
+              <div class="ach-bar-fill" style="width:${pct}%"></div>
+            </div>
+            <div class="ach-bar-text">${cur} / ${max}</div>
+          `;
+        }
         return `
           <div class="ach-card ${isUnlocked ? 'unlocked' : 'locked'}">
             ${isUnlocked ? '' : '<div class="ach-lock">🔒</div>'}
             <div class="ach-icon">${a.icon}</div>
             <div class="ach-name">${a.name}</div>
             <div class="ach-desc">${a.desc}</div>
+            ${barHtml}
           </div>
         `;
       }).join('')}
@@ -1392,11 +1554,11 @@ function renderAchievements() {
 
 // ============ РЕНДЕР СТАТИСТИКИ ============
 function renderStats() {
-  const totalAnswers = Object.values(stats.countryCorrect).reduce((a, b) => a + b, 0) 
+  const totalAnswers = Object.values(stats.countryCorrect).reduce((a, b) => a + b, 0)
                      + Object.values(stats.countryErrors).reduce((a, b) => a + b, 0);
   const totalErrors = Object.values(stats.countryErrors).reduce((a, b) => a + b, 0);
   const accuracy = totalAnswers > 0 ? Math.round((totalAnswers - totalErrors) / totalAnswers * 100) : 0;
-  
+
   const weakCountries = getWeakCountries(6);
   const weakCountriesHtml = weakCountries.length === 0
     ? `<div class="empty-state"><div class="big-emoji">🎉</div><p>Пока нет ошибок!</p></div>`
@@ -1416,8 +1578,7 @@ function renderStats() {
           `;
         }).join('')}
       </div>`;
-  
-  // Прогресс по континентам
+
   const continentsHtml = Object.entries(LEVELS)
     .filter(([key]) => key !== 'world')
     .map(([key, level]) => {
@@ -1435,19 +1596,18 @@ function renderStats() {
         </div>
       `;
     }).join('');
-  
-  // Круговая диаграмма
+
   const radius = 45, centerX = 50, centerY = 50, strokeWidth = 12;
   const circumference = 2 * Math.PI * radius;
   const correctPercent = totalAnswers > 0 ? (totalAnswers - totalErrors) / totalAnswers : 0;
   const correctLength = circumference * correctPercent;
   const donutSvg = `
     <svg width="100" height="100" viewBox="0 0 100 100">
-      <circle cx="${centerX}" cy="${centerY}" r="${radius}" fill="none" 
+      <circle cx="${centerX}" cy="${centerY}" r="${radius}" fill="none"
               stroke="var(--btn-border)" stroke-width="${strokeWidth}"/>
-      <circle cx="${centerX}" cy="${centerY}" r="${radius}" fill="none" 
+      <circle cx="${centerX}" cy="${centerY}" r="${radius}" fill="none"
               stroke="url(#donutGradient)" stroke-width="${strokeWidth}"
-              stroke-dasharray="${correctLength} ${circumference}" stroke-linecap="round" 
+              stroke-dasharray="${correctLength} ${circumference}" stroke-linecap="round"
               transform="rotate(-90 ${centerX} ${centerY})"/>
       <defs>
         <linearGradient id="donutGradient">
@@ -1455,11 +1615,11 @@ function renderStats() {
           <stop offset="1" stop-color="var(--accent-2)"/>
         </linearGradient>
       </defs>
-      <text x="${centerX}" y="${centerY + 5}" text-anchor="middle" 
+      <text x="${centerX}" y="${centerY + 5}" text-anchor="middle"
             fill="var(--text-primary)" font-size="16" font-weight="800">${accuracy}%</text>
     </svg>
   `;
-  
+
   document.getElementById('stats-content').innerHTML = `
     <div class="stats-summary">
       <div class="stat-box"><div class="stat-value">${stats.gamesPlayed}</div><div class="stat-label">Игр</div></div>
@@ -1484,15 +1644,17 @@ function trainWeakCountries() {
     showToast('✨', 'Нет слабых стран', 'Сыграй обычную викторину');
     return;
   }
-  
+
   selectedLevel = 'world';
   selectedBlitz = false;
+  selectedInputMode = false;
   currentMode = 'quiz';
-  
+
   const pool = shuffle(weak.map(w => w.key));
   currentQuiz = {
     level: 'world',
     blitz: false,
+    inputMode: false,
     questions: pool.slice(0, 10).map(key => ({ id: key, type: getRandomQuestionType() })),
     current: 0,
     score: 0,
@@ -1500,7 +1662,7 @@ function trainWeakCountries() {
     streak: 0,
     hintsUsed: 0
   };
-  
+
   document.getElementById('btn-explore').classList.remove('active');
   document.getElementById('btn-quiz').classList.add('active');
   renderQuizQuestion();
@@ -1513,14 +1675,14 @@ function initParticles() {
   const canvas = document.getElementById('particles');
   const ctx = canvas.getContext('2d');
   let width, height;
-  
+
   function resize() {
     width = canvas.width = innerWidth;
     height = canvas.height = innerHeight;
   }
   resize();
   window.addEventListener('resize', resize);
-  
+
   const particles = Array.from({ length: 50 }, () => ({
     x: Math.random() * width,
     y: Math.random() * height,
@@ -1529,7 +1691,7 @@ function initParticles() {
     dy: (Math.random() - 0.5) * 0.1,
     opacity: Math.random() * 0.3 + 0.1
   }));
-  
+
   function draw() {
     ctx.clearRect(0, 0, width, height);
     particles.forEach(p => {
@@ -1539,7 +1701,7 @@ function initParticles() {
       if (p.x > width) p.x = 0;
       if (p.y < 0) p.y = height;
       if (p.y > height) p.y = 0;
-      
+
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(139,92,246,${p.opacity})`;
@@ -1553,15 +1715,15 @@ function initParticles() {
 // ============ ONBOARDING ============
 function showOnboarding() {
   if (loadFromStorage(STORAGE_KEYS.onboarding, false)) return;
-  
+
   const slides = [
     { icon: '🌍', title: 'Изучай страны', desc: 'Кликай по карте, чтобы узнать факты о любой стране мира' },
-    { icon: '🎯', title: 'Проходи викторины', desc: 'Проверь свои знания в режимах «Классика» и «Блиц»' },
+    { icon: '🎯', title: 'Проходи викторины', desc: 'Проверь знания в режимах «Классика», «Блиц» и с вводом текста' },
     { icon: '🏆', title: 'Собирай ачивки', desc: 'Открывай достижения и следи за прогрессом' }
   ];
-  
+
   let currentSlide = 0;
-  
+
   function render() {
     document.getElementById('modal-onboarding-content').innerHTML = `
       <div class="onboarding fade">
@@ -1573,17 +1735,17 @@ function showOnboarding() {
         </div>
         <div class="btn-row" style="justify-content:center">
           ${currentSlide > 0 ? '<button class="btn small ghost" onclick="onboardingPrev()">← Назад</button>' : ''}
-          ${currentSlide < slides.length - 1 
+          ${currentSlide < slides.length - 1
             ? '<button class="btn primary" onclick="onboardingNext()">Далее →</button>'
             : '<button class="btn primary" onclick="closeOnboarding()">🚀 Начать!</button>'}
         </div>
       </div>
     `;
   }
-  
+
   window.onboardingNext = () => { currentSlide++; render(); };
   window.onboardingPrev = () => { currentSlide--; render(); };
-  
+
   render();
   openModal('onboarding');
 }
@@ -1600,6 +1762,7 @@ let mapMode = 'flat';
 let currentQuiz = null;
 let selectedLevel = 'world';
 let selectedBlitz = false;
+let selectedInputMode = false;
 let featureByKey = {};
 let countryPaths = null;
 let svg, viewport, zoom, projection, pathGenerator;
@@ -1686,11 +1849,25 @@ document.addEventListener('keydown', (e) => {
     openSearch();
   }
   if (currentMode === 'quiz' && currentQuiz && !currentQuiz.answered) {
-    if (e.key === ' ' || e.key === 'Enter') {
+    if ((e.key === ' ' || e.key === 'Enter') && !currentQuiz.inputMode) {
       e.preventDefault();
       const nextButton = document.getElementById('next-question');
-      if (nextButton) nextButton.click();
+      if (nextButton && !nextButton.classList.contains('hidden')) nextButton.click();
     }
+  }
+});
+
+// ============ АВТОПАУЗА ТАЙМЕРА БЛИЦ ============
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && currentQuiz && currentQuiz.blitz && !currentQuiz.answered) {
+    stopTimer();
+  } else if (!document.hidden && currentQuiz && currentQuiz.blitz && !currentQuiz.answered && currentMode === 'quiz') {
+    updateTimerUI();
+    timerId = setInterval(() => {
+      timeLeft -= 0.1;
+      if (timeLeft <= 0) { stopTimer(); onTimeout(); }
+      updateTimerUI();
+    }, 100);
   }
 });
 
@@ -1702,7 +1879,7 @@ async function init() {
   document.getElementById('sound-toggle').textContent = soundEnabled ? '🔊' : '🔇';
   initParticles();
   updateMasteryLevelUI();
-  
+
   let worldData;
   try {
     worldData = await d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
@@ -1710,35 +1887,35 @@ async function init() {
     panelContent.innerHTML = '<h2>😢 Ошибка загрузки</h2><p>Проверь интернет и обнови страницу.</p>';
     return;
   }
-  
+
   const countries = topojson.feature(worldData, worldData.objects.countries);
   countries.features.forEach(feature => {
     const key = getFeatureKey(feature);
-    if (key) featureByKey[key] = feature;
+    if (key && COUNTRIES_DB[key]) featureByKey[key] = feature;
   });
-  
+
   svg = d3.select('#map');
   viewport = d3.select('#viewport');
   projection = d3.geoNaturalEarth1().fitExtent([[10, 10], [MAP_WIDTH - 10, MAP_HEIGHT - 10]], { type: 'Sphere' });
   pathGenerator = d3.geoPath(projection);
-  
+
   haloPath = viewport.append('path')
     .attr('fill', 'none')
     .attr('stroke', 'rgba(96,165,250,.4)')
     .attr('stroke-width', 8)
     .attr('filter', 'url(#glow)')
     .style('display', 'none');
-  
+
   spherePath = viewport.append('path')
     .attr('fill', 'url(#oceanGrad)')
     .attr('stroke', 'rgba(255,255,255,.1)')
     .attr('stroke-width', 1);
-  
+
   graticulePath = viewport.append('path')
     .attr('fill', 'none')
     .attr('stroke', 'rgba(255,255,255,.04)')
     .attr('stroke-width', 0.5);
-  
+
   countryPaths = viewport.append('g').attr('id', 'countries')
     .selectAll('path')
     .data(countries.features)
@@ -1748,22 +1925,22 @@ async function init() {
       initAudio();
       if (currentMode === 'explore') {
         highlightAndShow(feature);
-      } else if (currentMode === 'quiz') {
+      } else if (currentMode === 'quiz' && currentQuiz && !currentQuiz.inputMode) {
         answerCountry(feature);
       }
     })
     .on('mousemove', moveTooltip)
     .on('mouseleave', () => tooltip.style.display = 'none');
-  
+
   updateLandColors();
   redrawAll();
-  
+
   zoom = d3.zoom()
     .scaleExtent([1, 25])
     .translateExtent([[0, 0], [MAP_WIDTH, MAP_HEIGHT]])
     .on('zoom', event => viewport.attr('transform', event.transform));
   svg.call(zoom);
-  
+
   globeDrag = d3.drag()
     .clickDistance(5)
     .on('start', () => svg.interrupt())
@@ -1774,10 +1951,10 @@ async function init() {
       projection.rotate([rotation[0] + event.dx * k, phi, 0]);
       redrawAll();
     });
-  
+
   // Pinch-to-zoom
   let touchStartDistance = 0, touchStartScale = 0;
-  
+
   svg.on('touchstart.pinch', function(event) {
     if (event.touches.length === 2) {
       event.preventDefault();
@@ -1785,7 +1962,7 @@ async function init() {
       touchStartScale = mapMode === 'globe' ? projection.scale() : d3.zoomTransform(svg.node()).k;
     }
   });
-  
+
   svg.on('touchmove.pinch', function(event) {
     if (event.touches.length === 2) {
       event.preventDefault();
@@ -1795,15 +1972,17 @@ async function init() {
         projection.scale(Math.max(globeScaleDefault * 0.7, Math.min(globeScaleDefault * 5, scale)));
         redrawAll();
       } else {
-        svg.call(zoom.transform, d3.zoomIdentity.scale(Math.max(1, Math.min(25, scale))));
+        const currentT = d3.zoomTransform(svg.node());
+        const factor = Math.max(1, Math.min(25, scale)) / currentT.k;
+        svg.call(zoom.transform, currentT.scale(factor));
       }
     }
   });
-  
+
   function getTouchDistance(touch1, touch2) {
     return Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
   }
-  
+
   isReady = true;
   setMode('explore');
   setTimeout(showOnboarding, 800);
@@ -1819,7 +1998,7 @@ function highlightAndShow(feature) {
   updateLandColors();
   playClickSound();
   vibrate(20);
-  
+
   setTimeout(() => {
     showCountryCard(key);
     zoomTo(feature);
@@ -1841,13 +2020,13 @@ function setMapMode(mode) {
   tooltip.style.display = 'none';
   svg.interrupt();
   playClickSound();
-  
+
   if (mode === 'globe') {
     stats.globeSwitches = (stats.globeSwitches || 0) + 1;
     saveStats();
     checkAchievements();
   }
-  
+
   if (mode === 'flat') {
     svg.on('.drag', null);
     projection = d3.geoNaturalEarth1().fitExtent([[10, 10], [MAP_WIDTH - 10, MAP_HEIGHT - 10]], { type: 'Sphere' });
@@ -2024,8 +2203,8 @@ function renderLearnCard() {
   const key = learnKeys[learnIndex];
   const country = COUNTRIES_DB[key];
   const facts = COUNTRY_FACTS[key];
-  
-  const factsHtml = facts 
+
+  const factsHtml = facts
     ? `<div class="facts">
         <div class="fact"><b>💰 Валюта</b>${facts[0]}</div>
         <div class="fact"><b>🗣️ Язык</b>${facts[1]}</div>
@@ -2034,7 +2213,7 @@ function renderLearnCard() {
       </div>
       <div class="fun-fact">💡 ${facts[4]}</div>`
     : `<p class="dim">Столица: ${country.capital}</p>`;
-  
+
   panelContent.innerHTML = `
     <div class="learn-card fade">
       <h2 style="font-size:18px">📖 Изучение</h2>
@@ -2058,16 +2237,16 @@ function renderLearnCard() {
 
 // ============ НАСТРОЙКА ВИКТОРИНЫ ============
 function renderSetup() {
-  const chips = Object.entries(LEVELS).map(([key, level]) => 
+  const chips = Object.entries(LEVELS).map(([key, level]) =>
     `<button class="chip ${selectedLevel === key ? 'active' : ''}" onclick="selectedLevel='${key}';playClickSound();renderSetup()">
       ${level.icon} ${level.name}
       <span class="chip-count">${getCountryPoolForLevel(key).length}</span>
     </button>`
   ).join('');
-  
+
   const recordKey = selectedLevel + (selectedBlitz ? '-blitz' : '-classic');
   const record = loadRecords()[recordKey];
-  
+
   panelContent.innerHTML = `
     <div class="fade">
       <h2>🎯 Викторина</h2>
@@ -2077,6 +2256,11 @@ function renderSetup() {
       <div class="chips">
         <button class="chip ${!selectedBlitz ? 'active' : ''}" onclick="selectedBlitz=false;playClickSound();renderSetup()">♾️ Классика</button>
         <button class="chip ${selectedBlitz ? 'active' : ''}" onclick="selectedBlitz=true;playClickSound();renderSetup()">⚡ Блиц · ${QUESTION_TIME}с</button>
+      </div>
+      <div class="section-label">Способ ответа</div>
+      <div class="chips">
+        <button class="chip ${!selectedInputMode ? 'active' : ''}" onclick="selectedInputMode=false;playClickSound();renderSetup()">🖱️ Клик по карте</button>
+        <button class="chip ${selectedInputMode ? 'active' : ''}" onclick="selectedInputMode=true;playClickSound();renderSetup()">⌨️ Ввод текста</button>
       </div>
       <div class="record-line">
         ${record ? `🏆 Рекорд: <b>${record.score}/10</b> · ${record.date}` : '🏆 Установи рекорд!'}
@@ -2100,11 +2284,12 @@ function startQuiz() {
   clearFlash();
   resetZoom();
   currentMode = 'quiz';
-  
+
   const pool = shuffle(getCountryPoolForLevel(selectedLevel)).slice(0, 10);
   currentQuiz = {
     level: selectedLevel,
     blitz: selectedBlitz,
+    inputMode: selectedInputMode,
     questions: pool.map(key => ({ id: key, type: getRandomQuestionType() })),
     current: 0,
     score: 0,
@@ -2112,7 +2297,7 @@ function startQuiz() {
     streak: 0,
     hintsUsed: 0
   };
-  
+
   document.getElementById('btn-explore').classList.remove('active');
   document.getElementById('btn-quiz').classList.add('active');
   renderQuizQuestion();
@@ -2125,7 +2310,7 @@ function renderQuizQuestion() {
   const question = currentQuiz.questions[currentQuiz.current];
   const country = COUNTRIES_DB[question.id];
   const level = LEVELS[currentQuiz.level];
-  
+
   let title, target;
   if (question.type === 'name') {
     title = 'Найди страну';
@@ -2137,11 +2322,11 @@ function renderQuizQuestion() {
     title = 'Найди по столице';
     target = `<div class="q-target">${country.capital}</div>`;
   }
-  
-  const streakHtml = currentQuiz.streak >= 2 
-    ? `<span class="pill streak-pill">🔥 ${currentQuiz.streak}</span>` 
+
+  const streakHtml = currentQuiz.streak >= 2
+    ? `<span class="pill streak-pill">🔥 ${currentQuiz.streak}</span>`
     : '';
-  
+
   panelContent.innerHTML = `
     <div class="fade">
       <div class="quiz-top">
@@ -2159,29 +2344,63 @@ function renderQuizQuestion() {
       ` : ''}
       <h2 class="q-title">${title}</h2>
       ${target}
+      ${currentQuiz.inputMode ? `
+        <div class="answer-input-wrap">
+          <input
+            class="answer-input"
+            id="answer-input"
+            type="text"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            placeholder="Введи название…"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();submitTextAnswer()}"
+          >
+          <button class="btn primary" onclick="submitTextAnswer()">ОК</button>
+        </div>
+      ` : ''}
       <div id="hint-area"></div>
       <div id="q-feedback"></div>
       <div class="btn-row">
         ${currentQuiz.blitz ? '' : `<button id="next-question" class="btn primary hidden" onclick="nextQuestion()">Далее →</button>`}
         <button class="btn small" onclick="useHint()">💡 Подсказка</button>
-        <button class="btn small ghost" onclick="setMode('setup')">Выйти</button>
+        <button class="btn small ghost" onclick="exitQuiz()">Выйти</button>
       </div>
     </div>
   `;
-  
+
   setPanelHandleTitle(`${title}: ${question.type === 'flag' ? '🚩' : (question.type === 'name' ? country.name : country.capital)}`);
   if (currentQuiz.blitz) startTimer();
+  if (currentQuiz.inputMode) {
+    setTimeout(() => {
+      const inp = document.getElementById('answer-input');
+      if (inp && !inp.disabled) inp.focus();
+    }, 100);
+  }
+}
+
+function exitQuiz() {
+  const answered = currentQuiz ? currentQuiz.current : 0;
+  if (answered > 0 && !confirm('Выйти из викторины? Прогресс не сохранится.')) return;
+  setMode('setup');
 }
 
 function useHint() {
   if (!currentQuiz || currentQuiz.answered || currentQuiz.hintsUsed >= 2) return;
   currentQuiz.hintsUsed++;
+  currentQuiz.score = Math.max(0, currentQuiz.score - 1);
   const question = currentQuiz.questions[currentQuiz.current];
   const country = COUNTRIES_DB[question.id];
   const level = LEVELS[country.level];
-  const hint = `${level.icon} Континент: <b>${level.name}</b> · Начинается на «<b>${country.name[0]}</b>»`;
+  const firstLetter = country.name[0];
+  const capitalFirst = country.capital[0];
+  const hint = `${level.icon} Континент: <b>${level.name}</b> · Страна на «<b>${firstLetter}</b>» (${country.name.length} букв) · Столица на «<b>${capitalFirst}</b>»`;
   document.getElementById('hint-area').innerHTML = `<div class="hint-box">💡 ${hint}</div>`;
-  showToast('💡', 'Подсказка', '−1 очко за подсказку', 2000);
+  // Обновим счёт в шапке
+  const scorePill = panelContent.querySelector('.score-pill');
+  if (scorePill) scorePill.textContent = `⭐ ${currentQuiz.score}`;
+  showToast('💡', 'Подсказка', '−1 очко', 2000);
   playClickSound();
 }
 
@@ -2217,11 +2436,11 @@ function answerCountry(feature) {
   if (currentMode !== 'quiz' || !currentQuiz || currentQuiz.answered) return;
   currentQuiz.answered = true;
   stopTimer();
-  
+
   const question = currentQuiz.questions[currentQuiz.current];
   const clickedKey = feature ? getFeatureKey(feature) : null;
   const isCorrect = clickedKey === question.id;
-  
+
   if (isCorrect) {
     currentQuiz.score++;
     currentQuiz.streak++;
@@ -2242,11 +2461,7 @@ function answerCountry(feature) {
     playWrongSound();
     vibrate(80);
   }
-  
-  if (currentQuiz.hintsUsed > 0 && isCorrect) {
-    currentQuiz.score = Math.max(0, currentQuiz.score - currentQuiz.hintsUsed);
-  }
-  
+
   if (feature) {
     countryPaths.filter(p => p === feature).classed(isCorrect ? 'flash-correct' : 'flash-wrong', true);
   }
@@ -2254,10 +2469,10 @@ function answerCountry(feature) {
   if (!isCorrect && correctFeature) {
     countryPaths.filter(p => p === correctFeature).classed('flash-correct', true);
   }
-  
+
   showQuizFeedback(isCorrect, question, !feature);
   if (correctFeature) zoomTo(correctFeature);
-  
+
   if (currentQuiz.blitz) {
     clearTimeout(advanceTimer);
     advanceTimer = setTimeout(nextQuestion, 1400);
@@ -2281,6 +2496,68 @@ function showQuizFeedback(isCorrect, question, isTimeout) {
   if (nextButton) nextButton.classList.remove('hidden');
 }
 
+function submitTextAnswer() {
+  if (!currentQuiz || currentQuiz.answered || !currentQuiz.inputMode) return;
+  const input = document.getElementById('answer-input');
+  if (!input) return;
+  const value = input.value.trim();
+  if (!value) return;
+
+  currentQuiz.answered = true;
+  stopTimer();
+
+  const question = currentQuiz.questions[currentQuiz.current];
+  const country = COUNTRIES_DB[question.id];
+  const correct = isAnswerCorrect(value, country);
+
+  if (correct) {
+    currentQuiz.score++;
+    currentQuiz.streak++;
+    stats.currentStreak = currentQuiz.streak;
+    if (currentQuiz.streak > stats.maxStreak) {
+      stats.maxStreak = currentQuiz.streak;
+      saveStats();
+    }
+    trackCorrectAnswer(question.id);
+    playCorrectSound();
+    vibrate(20);
+    if (currentQuiz.streak >= 3 && currentQuiz.streak % 3 === 0) playStreakSound();
+    updateDailyTask('correct');
+  } else {
+    currentQuiz.streak = 0;
+    trackWrongAnswer(question.id);
+    playWrongSound();
+    vibrate(80);
+  }
+
+  const feature = featureByKey[question.id];
+  if (feature) {
+    countryPaths.filter(p => p === feature).classed('flash-correct', true);
+    zoomTo(feature);
+  }
+
+  const feedback = document.getElementById('q-feedback');
+  if (correct) {
+    feedback.className = 'good';
+    feedback.textContent = `✅ Верно! Это ${country.name}.`;
+  } else {
+    feedback.className = 'bad';
+    feedback.textContent = `❌ Ты ввёл «${value}». Правильно: ${country.name}.`;
+  }
+
+  input.disabled = true;
+  const scorePill = panelContent.querySelector('.score-pill');
+  if (scorePill) scorePill.textContent = `⭐ ${currentQuiz.score}`;
+
+  if (currentQuiz.blitz) {
+    clearTimeout(advanceTimer);
+    advanceTimer = setTimeout(nextQuestion, 1800);
+  } else {
+    const nextButton = document.getElementById('next-question');
+    if (nextButton) nextButton.classList.remove('hidden');
+  }
+}
+
 function nextQuestion() {
   clearTimeout(advanceTimer);
   stopTimer();
@@ -2301,37 +2578,39 @@ function showResults() {
   const key = getRecordKey();
   const previousRecord = records[key];
   const isNewRecord = !previousRecord || currentQuiz.score > previousRecord.score;
-  
+
   if (isNewRecord) {
     records[key] = { score: currentQuiz.score, date: new Date().toLocaleDateString('ru-RU') };
     saveRecords(records);
   }
-  
+
   trackGameEnd(currentQuiz.score, total, currentQuiz.level, currentQuiz.blitz);
-  updateDailyTask('blitz', currentQuiz.blitz ? 1 : 0);
+  if (currentQuiz.blitz) updateDailyTask('blitz', 1);
   updateMasteryLevelUI();
-  
+
   const percent = currentQuiz.score / total;
-  const message = percent === 1 ? 'Идеально! 🎉' 
-    : percent >= .8 ? 'Отлично! 🔥' 
-    : percent >= .5 ? 'Неплохо! 👍' 
+  const message = percent === 1 ? 'Идеально! 🎉'
+    : percent >= .8 ? 'Отлично! 🔥'
+    : percent >= .5 ? 'Неплохо! 👍'
     : 'Попробуй ещё! 💪';
-  
+
+  const scoreSnapshot = currentQuiz.score;
+
   panelContent.innerHTML = `
     <div class="fade center">
       <h2>🏁 Готово!</h2>
-      <div class="big-score">${currentQuiz.score}<span class="big-total">/${total}</span></div>
+      <div class="big-score">${scoreSnapshot}<span class="big-total">/${total}</span></div>
       ${isNewRecord ? '<div class="new-record">🏆 Новый рекорд!</div>' : (previousRecord ? `<div class="dim">Рекорд: ${previousRecord.score}/${total}</div>` : '')}
       <p>${message}</p>
       <div class="btn-row" style="justify-content:center">
         <button class="btn primary" onclick="startQuiz()">🔄 Ещё</button>
-        <button class="btn small" onclick="exportResult(${currentQuiz.score},${total})">📤 Поделиться</button>
+        <button class="btn small" onclick="exportResult(${scoreSnapshot},${total})">📤 Поделиться</button>
         <button class="btn small" onclick="setMode('setup')">⚙️</button>
         <button class="btn small ghost" onclick="setMode('explore')">🧭</button>
       </div>
     </div>
   `;
-  setPanelHandleTitle(`🏁 ${currentQuiz.score}/${total}`);
+  setPanelHandleTitle(`🏁 ${scoreSnapshot}/${total}`);
   resetZoom();
   if (isMobile()) panel.classList.add('expanded');
   if (isNewRecord) setTimeout(playRecordSound, 300);
