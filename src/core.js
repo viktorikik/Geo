@@ -1,7 +1,7 @@
 import {
   STORAGE_KEYS, THEMES, THEME_ICONS, MASTERY_LEVELS,
 } from './config.js';
-import { ACHIEVEMENTS, getDefaultStats } from './data.js';
+import { ACHIEVEMENTS, COUNTRIES_DB, getDefaultStats } from './data.js';
 
 /* ============================================================
    STORAGE
@@ -165,7 +165,9 @@ let audioContext = null;
 
 export function initAudio() {
   if (!audioContext) {
-    try { audioContext = new (window.AudioContext || window.webkitAudioContext)(); } catch (_) {}
+    try {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (_) {}
   }
   if (audioContext && audioContext.state === 'suspended') audioContext.resume();
 }
@@ -191,19 +193,28 @@ export function playCorrectSound() {
   playTone(659, 0.1, 'sine', 0.06, 0.07);
   playTone(784, 0.15, 'sine', 0.08, 0.14);
 }
+
 export function playWrongSound() {
   playTone(233, 0.2, 'triangle', 0.03);
   playTone(207, 0.25, 'triangle', 0.03, 0.08);
 }
+
 export function playClickSound() {
   playTone(880, 0.03, 'square', 0.015);
 }
+
 export function playAchievementSound() {
-  [523, 659, 784, 1047].forEach((f, i) => playTone(f, 0.15, 'triangle', 0.07, i * 0.09));
+  [523, 659, 784, 1047].forEach((f, i) =>
+    playTone(f, 0.15, 'triangle', 0.07, i * 0.09)
+  );
 }
+
 export function playRecordSound() {
-  [659, 784, 1047, 1319].forEach((f, i) => playTone(f, 0.18, 'sine', 0.08, i * 0.1));
+  [659, 784, 1047, 1319].forEach((f, i) =>
+    playTone(f, 0.18, 'sine', 0.08, i * 0.1)
+  );
 }
+
 export function playStreakSound() {
   playTone(880, 0.08, 'sine', 0.05);
   playTone(1100, 0.12, 'sine', 0.06, 0.06);
@@ -212,7 +223,10 @@ export function playStreakSound() {
 export function toggleSound() {
   state.soundEnabled = !state.soundEnabled;
   saveToStorage(STORAGE_KEYS.sound, state.soundEnabled);
-  if (state.soundEnabled) { initAudio(); playClickSound(); }
+  if (state.soundEnabled) {
+    initAudio();
+    playClickSound();
+  }
   emit('sound:changed', state.soundEnabled);
 }
 
@@ -259,7 +273,10 @@ export function getDailyTasks() {
     { icon: '⚡', name: 'Быстрый ум', desc: 'Сыграй 2 блиц-игры', target: 2, type: 'blitz' }
   ];
 
-  const result = { date: today, tasks: tasks.map(t => ({ ...t, progress: 0, done: false })) };
+  const result = {
+    date: today,
+    tasks: tasks.map(t => ({ ...t, progress: 0, done: false }))
+  };
   saveToStorage(STORAGE_KEYS.daily, result);
   return result;
 }
@@ -342,7 +359,10 @@ export function levenshtein(a, b) {
 export function isAnswerCorrect(userInput, country) {
   const user = normalizeAnswer(userInput);
   if (!user) return false;
-  const targets = [normalizeAnswer(country.name), normalizeAnswer(country.capital)];
+  const targets = [
+    normalizeAnswer(country.name),
+    normalizeAnswer(country.capital)
+  ];
   for (const t of targets) {
     if (!t) continue;
     if (t === user) return true;
@@ -354,10 +374,7 @@ export function isAnswerCorrect(userInput, country) {
 }
 
 export function getCountryPoolForLevel(level, featureByKey) {
-  const { COUNTRIES_DB } = window.__geomaster_data__ || {};
-  const db = COUNTRIES_DB;
-  if (!db) return [];
-  return Object.keys(db).filter(key =>
-    featureByKey[key] && (level === 'world' || db[key].level === level)
+  return Object.keys(COUNTRIES_DB).filter(key =>
+    featureByKey[key] && (level === 'world' || COUNTRIES_DB[key].level === level)
   );
 }
