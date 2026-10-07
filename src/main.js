@@ -9,13 +9,10 @@ import {
 import {
   initParticles, initModals, initPanel, collapsePanel, openModal,
 } from './ui.js';
+import { startQuiz } from './quiz.js';
 import {
-  startQuiz, nextQuestion, exitQuiz,
-} from './quiz.js';
-import {
-  renderExplore, renderSetup, renderLearn,
-  showCountryCard, renderStats, renderAchievements, renderDaily,
-  initScreens, showOnboarding,
+  renderExplore, renderSetup, renderLearn, renderQuizQuestion,
+  showCountryCard, initScreens, showOnboarding,
 } from './screens.js';
 
 /* ============================================================
@@ -31,15 +28,21 @@ function setMode(mode) {
   state.mode = mode;
   if (mode !== 'quiz') state.quiz = null;
   if (mode !== 'quiz') resetZoom();
+
   document.querySelectorAll('.mode-btn').forEach(b => {
-    const active = b.dataset.mode === mode || (mode === 'quiz' && b.dataset.mode === 'setup');
+    const active = b.dataset.mode === mode ||
+      (mode === 'quiz' && b.dataset.mode === 'setup');
     b.classList.toggle('active', active);
   });
+
   const renderer = MODE_RENDERERS[mode === 'quiz' ? 'setup' : mode];
   if (renderer) renderer();
   collapsePanel();
 }
 
+/* ============================================================
+   EVENT WIRING
+   ============================================================ */
 on('mode:set', setMode);
 
 on('mode:set-active', (mode) => {
@@ -49,6 +52,7 @@ on('mode:set-active', (mode) => {
 });
 
 on('map:set-mode', (mode) => setMapMode(mode));
+
 on('map:zoom', (action) => {
   if (action === 'in') zoomBy(1.6);
   else if (action === 'out') zoomBy(1 / 1.6);
@@ -59,19 +63,9 @@ on('country:clicked', (key) => {
   if (key) showCountryCard(key);
 });
 
-on('quiz:start', () => { startQuiz(); });
+on('quiz:start', () => startQuiz());
 
-on('quiz:render-question', () => {
-  // Импортируем renderQuizQuestion из screens
-  import('./screens.js').then(m => {
-    if (m.renderQuizQuestion) m.renderQuizQuestion();
-  });
-});
-
-// Мы не можем динамически импортировать в собранном виде.
-// Поэтому при разработке используется import(), а в сборке —
-// прямая ссылка. Упростим: добавим экспорт напрямую.
-// (см. ниже — мы просто зарегистрируем рендер через on)
+on('quiz:render-question', () => renderQuizQuestion());
 
 on('panel:collapse', () => collapsePanel());
 
@@ -81,9 +75,11 @@ on('panel:collapse', () => collapsePanel());
 function updateMasteryLevelUI() {
   const lvl = getCurrentMasteryLevel();
   const next = MASTERY_LEVELS[lvl.index + 1];
+
   const iconEl = document.getElementById('level-icon');
   const nameEl = document.getElementById('level-name');
   const fillEl = document.getElementById('level-fill');
+
   if (iconEl) iconEl.textContent = lvl.icon;
   if (nameEl) nameEl.textContent = lvl.name;
   if (fillEl) {
@@ -95,9 +91,6 @@ function updateMasteryLevelUI() {
   }
 }
 
-/* ============================================================
-   WIRE
-   ============================================================ */
 function wireHud() {
   const soundBtn = document.getElementById('sound-toggle');
   if (soundBtn) {
@@ -106,6 +99,7 @@ function wireHud() {
       soundBtn.textContent = state.soundEnabled ? '🔊' : '🔇';
     });
   }
+
   const themeBtn = document.getElementById('theme-toggle');
   if (themeBtn) themeBtn.addEventListener('click', cycleTheme);
 
@@ -145,16 +139,6 @@ function wireHud() {
 
   on('stats:changed', updateMasteryLevelUI);
 }
-
-/* ============================================================
-   BRIDGES — чтобы не было циклических зависимостей
-   ============================================================ */
-import { submitTextAnswer } from './quiz.js';
-import { renderQuizQuestion } from './screens.js';
-
-// Переопределяем обработчик рендера через on
-on('quiz:render-question', () => renderQuizQuestion());
-on('mode:reset-all', () => setMode('explore'));
 
 /* ============================================================
    BOOT
