@@ -3,12 +3,10 @@ import {
 } from './config.js';
 import { COUNTRIES_DB } from './data.js';
 import {
-  state, setState, getFeatureKey, emit,
-  initAudio, playClickSound, vibrate,
+  state, emit, getFeatureKey,
+  initAudio, playClickSound, vibrate, saveStats, checkAchievements,
 } from './core.js';
-import { showToast } from './ui.js';
 
-// Внутреннее состояние карты
 let svg, viewport, zoom, projection, pathGenerator;
 let spherePath, graticulePath, haloPath, globeDrag;
 let countryPaths = null;
@@ -16,7 +14,6 @@ let globeScaleDefault = 220;
 const featureByKey = {};
 let highlightedFeature = null;
 
-// Внешний доступ (для quiz / screens)
 export function getFeatureByKey() { return featureByKey; }
 export function getCountryPaths() { return countryPaths; }
 export function getProjection() { return projection; }
@@ -70,19 +67,23 @@ export async function initMap() {
     .attr('d', pathGenerator)
     .on('click', onClickCountry)
     .on('mousemove', moveTooltip)
-    .on('mouseleave', () => { document.getElementById('tooltip').style.display = 'none'; });
+    .on('mouseleave', () => {
+      document.getElementById('tooltip').style.display = 'none';
+    });
 
   updateLandColors();
   redrawAll();
   setupZoomDrag();
 
-  setState({ ready: true });
+  state.ready = true;
+  emit('map:ready');
 }
 
 /* ============================================================
    RENDER
    ============================================================ */
 export function redrawAll() {
+  if (!spherePath) return;
   spherePath.attr('d', pathGenerator({ type: 'Sphere' }));
   graticulePath.attr('d', pathGenerator(d3.geoGraticule10()));
   haloPath.attr('d', pathGenerator({ type: 'Sphere' }));
@@ -101,10 +102,15 @@ export function updateLandColors() {
   countryPaths.each(function(d) {
     const el = d3.select(this);
     if (d.__highlighted) {
-      el.attr('fill', hi).attr('stroke', hiStroke).attr('stroke-width', 2).attr('filter', 'url(#glow)');
+      el.attr('fill', hi)
+        .attr('stroke', hiStroke)
+        .attr('stroke-width', 2)
+        .attr('filter', 'url(#glow)');
     } else {
       el.attr('fill', COUNTRIES_DB[getFeatureKey(d)] ? known : unknown)
-        .attr('stroke', border).attr('stroke-width', 0.6).attr('filter', null);
+        .attr('stroke', border)
+        .attr('stroke-width', 0.6)
+        .attr('filter', null);
     }
   });
 }
@@ -147,6 +153,15 @@ export function clearHighlight() {
     highlightedFeature = null;
     updateLandColors();
   }
+}
+
+export function flashCountry(feature, type) {
+  if (!countryPaths) return;
+  countryPaths.filter(p => p === feature).classed(type, true);
+}
+
+export function clearFlash() {
+  if (countryPaths) countryPaths.classed('flash-correct', false).classed('flash-wrong', false);
 }
 
 /* ============================================================
@@ -204,8 +219,9 @@ function setupPinch() {
 }
 
 export function setMapMode(mode) {
+  if (!svg) return;
   if (state.mapMode === mode) return;
-  setState({ mapMode: mode });
+  state.mapMode = mode;
   document.getElementById('view-flat').classList.toggle('active', mode === 'flat');
   document.getElementById('view-globe').classList.toggle('active', mode === 'globe');
   document.getElementById('tooltip').style.display = 'none';
@@ -214,7 +230,8 @@ export function setMapMode(mode) {
 
   if (mode === 'globe') {
     state.stats.globeSwitches = (state.stats.globeSwitches || 0) + 1;
-    emit('stats:changed', state.stats);
+    saveStats();
+    checkAchievements();
   }
 
   if (mode === 'flat') {
@@ -237,12 +254,15 @@ export function setMapMode(mode) {
   pathGenerator = d3.geoPath(projection);
   redrawAll();
   updateLandColors();
+  emit('map:mode-changed', mode);
 }
 
 export function zoomTo(feature) {
-  if (state.mapMode === 'globe') return rotateTo(feature);
+  if (!svg) return;
+  if (state.mapMode === 'globe') { rotateTo(feature); return; }
   const [[x0, y0], [x1, y1]] = pathGenerator.bounds(feature);
-  const s = Math.max(1, Math.min(12, 0.65 / Math.max((x1 - x0) / MAP_WIDTH, (y1 - y0) / MAP_HEIGHT)));
+  const s = Math.max(1, Math.min(12,
+    0.65 / Math.max((x1 - x0) / MAP_WIDTH, (y1 - y0) / MAP_HEIGHT)));
   const tx = MAP_WIDTH / 2 - s * (x0 + x1) / 2;
   const ty = MAP_HEIGHT / 2 - s * (y0 + y1) / 2;
   svg.transition().duration(700)
@@ -265,6 +285,7 @@ function rotateTo(feature) {
 }
 
 export function resetZoom() {
+  if (!svg) return;
   clearHighlight();
   if (state.mapMode === 'flat') {
     svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
@@ -285,6 +306,8 @@ export function resetZoom() {
 }
 
 export function zoomBy(factor) {
+  if (!svg) return;
+  playClickSound();
   if (state.mapMode === 'flat') {
     svg.transition().duration(250).call(zoom.scaleBy, factor);
   } else {
@@ -295,18 +318,4 @@ export function zoomBy(factor) {
       return t => { projection.scale(i(t)); redrawAll(); };
     });
   }
-}
-
-export function flashCountry(feature, type) {
-  if (!countryPaths) return;
-  countryPaths.filter(p => p === feature).classed(type, true);
-}
-
-export function clearFlash() {
-  if (countryPaths) countryPaths.classed('flash-correct', false).classed('flash-wrong', false);
-}
-
-export function highlightQuizTarget(key) {
-  const f = featureByKey[key];
-  if (f) { countryPaths.filter(p => p === f).classed('flash-correct', true); zoomTo(f); }
 }
