@@ -1,0 +1,14 @@
+{
+  "name": "geomaster",
+  "version": "2.0.0",
+  "description": "Интерактивная карта мира с викторинами",
+  "type": "module",
+  "scripts": {
+    "dev": "npx serve . -p 3000",
+    "build": "node build.js",
+    "preview": "npx serve dist -p 4000"
+  },
+  "devDependencies": {
+    "serve": "^14.2.0"
+  }
+}
