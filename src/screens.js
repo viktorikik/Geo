@@ -1,5 +1,9 @@
-import { COUNTRIES_DB, COUNTRY_FACTS, ACHIEVEMENTS } from './data.js';
-import { LEVELS, QUESTION_TIME } from './config.js';
+import {
+  LEVELS, QUESTION_TIME, STORAGE_KEYS,
+} from './config.js';
+import {
+  COUNTRIES_DB, COUNTRY_FACTS, ACHIEVEMENTS, getDefaultStats,
+} from './data.js';
 import {
   state, emit, on,
   getWeakCountries, getCurrentMasteryLevel,
@@ -8,6 +12,7 @@ import {
   trackCountryExplored, updateDailyTask,
   getDailyTasks, loadFromStorage, saveToStorage,
   getRandomQuestionType,
+  saveStats, saveAchievements,
 } from './core.js';
 import {
   openModal, closeModal, collapsePanel, expandPanel, setPanelHandleTitle,
@@ -16,9 +21,8 @@ import {
   resetZoom, getFeatureByKey, zoomTo,
 } from './map.js';
 import {
-  startQuiz, nextQuestion, submitTextAnswer, useHint, exitQuiz,
+  nextQuestion, submitTextAnswer, useHint, exitQuiz, startTimer,
 } from './quiz.js';
-import { STORAGE_KEYS } from './config.js';
 
 const panelContent = () => document.getElementById('panel-content');
 
@@ -170,33 +174,26 @@ export function renderQuizQuestion() {
     q.type === 'flag' ? '🚩' : (q.type === 'name' ? country.name : country.capital)
   }`);
 
-  // Таймер и фокус
-  if (quiz.blitz) startTimerBridge();
+  if (quiz.blitz) startTimer();
+
   if (quiz.inputMode) {
     setTimeout(() => {
       const inp = document.getElementById('answer-input');
       if (inp && !inp.disabled) {
         inp.focus();
         inp.addEventListener('keydown', e => {
-          if (e.key === 'Enter') { e.preventDefault(); submitTextBridge(); }
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            submitTextAnswer(inp.value);
+          }
         });
       }
     }, 100);
   }
 }
 
-// Импортируем startTimer из quiz.js через небольшой «мост»,
-// чтобы избежать циклических зависимостей на уровне модулей
-import { startTimer } from './quiz.js';
-function startTimerBridge() { startTimer(); }
-
-function submitTextBridge() {
-  const inp = document.getElementById('answer-input');
-  if (inp) submitTextAnswer(inp.value);
-}
-
 /* ============================================================
-   QUIZ FEEDBACK
+   QUIZ FEEDBACK EVENTS
    ============================================================ */
 on('quiz:click-feedback', ({ correct, question, timeout }) => {
   const country = COUNTRIES_DB[question.id];
@@ -259,7 +256,9 @@ on('quiz:results', ({ score, total, isNewRecord, previousRecord }) => {
   panelContent().innerHTML = `
     <div class="fade center">
       <h2>🏁 Готово!</h2>
-      <div class="big-score">${score}<span class="big-total">/${total}</span></div>
+      <div class="big-score" data-score="${score}" data-total="${total}">
+        ${score}<span class="big-total">/${total}</span>
+      </div>
       ${isNewRecord
         ? '<div class="new-record">🏆 Новый рекорд!</div>'
         : (previousRecord ? `<div class="dim">Рекорд: ${previousRecord.score}/${total}</div>` : '')}
@@ -752,7 +751,7 @@ export async function exportResult(score, total) {
    ============================================================ */
 export function initScreens() {
   document.addEventListener('click', (e) => {
-    // Общие кнопки actions
+    // Общие data-action
     const act = e.target.closest('[data-action]');
     if (act) {
       const a = act.dataset.action;
@@ -764,20 +763,21 @@ export function initScreens() {
       if (a === 'start-quiz') emit('quiz:start');
       if (a === 'restart-quiz') emit('quiz:start');
       if (a === 'train-weak') { closeModal('stats'); trainWeakCountries(); }
-      if (a === 'reset-all') {
-        if (confirm('Сбросить всё?')) {
-          state.stats = { ...getDefaultStats() };
-          state.unlockedAchievements = new Set();
-          saveStatsBridge();
-          renderStats();
-        }
-      }
       if (a === 'share-result') {
-        // score/total берём из последнего рендера — прокинем через data-атрибуты
         const scoreEl = panelContent().querySelector('.big-score');
         if (scoreEl) {
-          const [s, t] = scoreEl.textContent.split('/');
-          exportResult(parseInt(s), parseInt(t));
+          const s = parseInt(scoreEl.dataset.score, 10);
+          const t = parseInt(scoreEl.dataset.total, 10);
+          if (!isNaN(s) && !isNaN(t)) exportResult(s, t);
+        }
+      }
+      if (a === 'reset-all') {
+        if (confirm('Сбросить всё?')) {
+          state.stats = getDefaultStats();
+          state.unlockedAchievements = new Set();
+          saveStats();
+          saveAchievements();
+          renderStats();
         }
       }
       return;
@@ -807,7 +807,10 @@ export function initScreens() {
       if (a === 'next') nextQuestion();
       if (a === 'hint') useHint();
       if (a === 'exit') exitQuiz();
-      if (a === 'submit-text') submitTextBridge();
+      if (a === 'submit-text') {
+        const inp2 = document.getElementById('answer-input');
+        if (inp2) submitTextAnswer(inp2.value);
+      }
       return;
     }
 
@@ -848,17 +851,8 @@ export function initScreens() {
     if (zb) { emit('map:zoom', zb.dataset.zoom); return; }
   });
 
-  // Search input
   const searchInput = document.getElementById('search-input');
   if (searchInput) {
     searchInput.addEventListener('input', e => doSearch(e.target.value));
   }
-}
-
-// Импорт getDefaultStats + saveStats
-import { getDefaultStats } from './data.js';
-import { saveStats, saveAchievements } from './core.js';
-function saveStatsBridge() {
-  saveStats();
-  saveAchievements();
 }
