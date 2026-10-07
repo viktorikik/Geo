@@ -1,10 +1,10 @@
 import {
   STORAGE_KEYS, THEMES, THEME_ICONS, MASTERY_LEVELS,
 } from './config.js';
-import { COUNTRIES_DB, ACHIEVEMENTS, getDefaultStats } from './data.js';
+import { ACHIEVEMENTS, getDefaultStats } from './data.js';
 
 /* ============================================================
-   1. STORAGE
+   STORAGE
    ============================================================ */
 export function loadFromStorage(key, defaultValue) {
   try {
@@ -22,22 +22,16 @@ export function saveToStorage(key, value) {
 }
 
 /* ============================================================
-   2. STATE + EVENT BUS
+   STATE + EVENTS
    ============================================================ */
 export const state = {
-  // Runtime
   ready: false,
-  mode: 'explore',          // explore | setup | learn | quiz
-  mapMode: 'flat',          // flat | globe
-  highlightedFeature: null,
-
-  // Quiz
+  mode: 'explore',
+  mapMode: 'flat',
   quiz: null,
   selectedLevel: 'world',
   selectedBlitz: false,
   selectedInputMode: false,
-
-  // Persisted
   stats: loadFromStorage(STORAGE_KEYS.stats, getDefaultStats()),
   unlockedAchievements: new Set(loadFromStorage(STORAGE_KEYS.achievements, [])),
   soundEnabled: loadFromStorage(STORAGE_KEYS.sound, true),
@@ -46,14 +40,12 @@ export const state = {
 
 const listeners = new Map();
 
-/** Подписка: on('stats:changed', fn) */
 export function on(event, fn) {
   if (!listeners.has(event)) listeners.set(event, new Set());
   listeners.get(event).add(fn);
   return () => listeners.get(event).delete(fn);
 }
 
-/** Публикация события */
 export function emit(event, data) {
   if (listeners.has(event)) {
     listeners.get(event).forEach(fn => {
@@ -62,14 +54,13 @@ export function emit(event, data) {
   }
 }
 
-/** Универсальное обновление state + событие */
 export function setState(patch) {
   Object.assign(state, patch);
   emit('change', state);
 }
 
 /* ============================================================
-   3. STATS + ACHIEVEMENTS
+   STATS
    ============================================================ */
 export function saveStats() {
   saveToStorage(STORAGE_KEYS.stats, state.stats);
@@ -127,6 +118,17 @@ export function getWeakCountries(limit = 8) {
   return items.slice(0, limit);
 }
 
+export function getRecords() {
+  return loadFromStorage(STORAGE_KEYS.records, {});
+}
+
+export function saveRecords(records) {
+  saveToStorage(STORAGE_KEYS.records, records);
+}
+
+/* ============================================================
+   ACHIEVEMENTS
+   ============================================================ */
 export function checkAchievements() {
   const newlyUnlocked = [];
   for (const a of ACHIEVEMENTS) {
@@ -157,7 +159,7 @@ export function getCurrentMasteryLevel() {
 }
 
 /* ============================================================
-   4. AUDIO
+   AUDIO
    ============================================================ */
 let audioContext = null;
 
@@ -165,7 +167,7 @@ export function initAudio() {
   if (!audioContext) {
     try { audioContext = new (window.AudioContext || window.webkitAudioContext)(); } catch (_) {}
   }
-  if (audioContext?.state === 'suspended') audioContext.resume();
+  if (audioContext && audioContext.state === 'suspended') audioContext.resume();
 }
 
 function playTone(frequency, duration, type = 'sine', volume = 0.08, delay = 0) {
@@ -178,39 +180,44 @@ function playTone(frequency, duration, type = 'sine', volume = 0.08, delay = 0) 
   gain.gain.setValueAtTime(0, t0);
   gain.gain.linearRampToValueAtTime(volume, t0 + 0.015);
   gain.gain.exponentialRampToValueAtTime(0.001, t0 + duration);
-  osc.connect(gain).connect(audioContext.destination);
+  osc.connect(gain);
+  gain.connect(audioContext.destination);
   osc.start(t0);
   osc.stop(t0 + duration + 0.05);
 }
 
-export const playCorrectSound = () => {
+export function playCorrectSound() {
   playTone(523, 0.1, 'sine', 0.06);
   playTone(659, 0.1, 'sine', 0.06, 0.07);
   playTone(784, 0.15, 'sine', 0.08, 0.14);
-};
-export const playWrongSound = () => {
+}
+export function playWrongSound() {
   playTone(233, 0.2, 'triangle', 0.03);
   playTone(207, 0.25, 'triangle', 0.03, 0.08);
-};
-export const playClickSound = () => playTone(880, 0.03, 'square', 0.015);
-export const playAchievementSound = () =>
+}
+export function playClickSound() {
+  playTone(880, 0.03, 'square', 0.015);
+}
+export function playAchievementSound() {
   [523, 659, 784, 1047].forEach((f, i) => playTone(f, 0.15, 'triangle', 0.07, i * 0.09));
-export const playRecordSound = () =>
+}
+export function playRecordSound() {
   [659, 784, 1047, 1319].forEach((f, i) => playTone(f, 0.18, 'sine', 0.08, i * 0.1));
-export const playStreakSound = () => {
+}
+export function playStreakSound() {
   playTone(880, 0.08, 'sine', 0.05);
   playTone(1100, 0.12, 'sine', 0.06, 0.06);
-};
+}
 
 export function toggleSound() {
-  setState({ soundEnabled: !state.soundEnabled });
+  state.soundEnabled = !state.soundEnabled;
   saveToStorage(STORAGE_KEYS.sound, state.soundEnabled);
   if (state.soundEnabled) { initAudio(); playClickSound(); }
   emit('sound:changed', state.soundEnabled);
 }
 
 /* ============================================================
-   5. THEME
+   THEME
    ============================================================ */
 export function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
@@ -223,7 +230,7 @@ export function applyTheme(theme) {
 export function cycleTheme() {
   playClickSound();
   const next = THEMES[(THEMES.indexOf(state.theme) + 1) % THEMES.length];
-  setState({ theme: next });
+  state.theme = next;
   saveToStorage(STORAGE_KEYS.theme, next);
   applyTheme(next);
 }
@@ -239,7 +246,40 @@ function updateOceanColors() {
 }
 
 /* ============================================================
-   6. UTILS
+   DAILY TASKS
+   ============================================================ */
+export function getDailyTasks() {
+  const today = new Date().toDateString();
+  const saved = loadFromStorage(STORAGE_KEYS.daily, {});
+  if (saved.date === today) return saved;
+
+  const tasks = [
+    { icon: '🎯', name: 'Точный стрелок', desc: 'Ответь правильно 7 раз', target: 7, type: 'correct' },
+    { icon: '🌍', name: 'Исследователь', desc: 'Изучи 5 новых стран', target: 5, type: 'explore' },
+    { icon: '⚡', name: 'Быстрый ум', desc: 'Сыграй 2 блиц-игры', target: 2, type: 'blitz' }
+  ];
+
+  const result = { date: today, tasks: tasks.map(t => ({ ...t, progress: 0, done: false })) };
+  saveToStorage(STORAGE_KEYS.daily, result);
+  return result;
+}
+
+export function updateDailyTask(type, value = 1) {
+  const daily = getDailyTasks();
+  daily.tasks.forEach(task => {
+    if (task.type === type && !task.done) {
+      task.progress = Math.min(task.target, task.progress + value);
+      if (task.progress >= task.target) {
+        task.done = true;
+        emit('toast', { icon: '✅', title: 'Задание выполнено!', desc: task.name });
+      }
+    }
+  });
+  saveToStorage(STORAGE_KEYS.daily, daily);
+}
+
+/* ============================================================
+   UTILS
    ============================================================ */
 export function shuffle(array) {
   const arr = [...array];
@@ -251,13 +291,13 @@ export function shuffle(array) {
 }
 
 export function vibrate(duration = 30) {
-  try { navigator.vibrate?.(duration); } catch (_) {}
+  try { if (navigator.vibrate) navigator.vibrate(duration); } catch (_) {}
 }
 
 export function getFeatureKey(feature) {
   const id = String(feature.id ?? '');
   if (!id) return null;
-  if (id.startsWith('-')) return null;  // спорные регионы пропускаем
+  if (id.startsWith('-')) return null;
   return id.padStart(3, '0');
 }
 
@@ -274,7 +314,6 @@ export function getFlagImage(code, className = 'flag-wrap') {
   </div>`;
 }
 
-// Нечёткое сравнение
 export function normalizeAnswer(str) {
   return String(str)
     .toLowerCase()
@@ -315,14 +354,10 @@ export function isAnswerCorrect(userInput, country) {
 }
 
 export function getCountryPoolForLevel(level, featureByKey) {
-  return Object.keys(COUNTRIES_DB).filter(key =>
-    featureByKey[key] && (level === 'world' || COUNTRIES_DB[key].level === level)
+  const { COUNTRIES_DB } = window.__geomaster_data__ || {};
+  const db = COUNTRIES_DB;
+  if (!db) return [];
+  return Object.keys(db).filter(key =>
+    featureByKey[key] && (level === 'world' || db[key].level === level)
   );
-}
-
-export function getRecords() {
-  return loadFromStorage(STORAGE_KEYS.records, {});
-}
-export function saveRecords(records) {
-  saveToStorage(STORAGE_KEYS.records, records);
 }
