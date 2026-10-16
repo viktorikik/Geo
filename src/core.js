@@ -1,29 +1,7 @@
-import {
-  STORAGE_KEYS, THEMES, THEME_ICONS, MASTERY_LEVELS,
-} from './config.js';
-import { ACHIEVEMENTS, COUNTRIES_DB, getDefaultStats } from './data.js';
+// src/core.js — state, storage, audio, theme, stats, utils, event bus
+import { STORAGE_KEYS, MASTERY_LEVELS } from './config.js';
+import { getDefaultStats, getMasteryLevel, getNextMasteryLevel, ACHIEVEMENTS } from './data.js';
 
-/* ============================================================
-   STORAGE
-   ============================================================ */
-export function loadFromStorage(key, defaultValue) {
-  try {
-    const value = localStorage.getItem(key);
-    if (!value) return defaultValue;
-    return JSON.parse(value);
-  } catch (e) {
-    try { localStorage.removeItem(key); } catch (_) {}
-    return defaultValue;
-  }
-}
-
-export function saveToStorage(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {}
-}
-
-/* ============================================================
-   STATE + EVENTS
-   ============================================================ */
 export const state = {
   ready: false,
   mode: 'explore',
@@ -32,303 +10,311 @@ export const state = {
   selectedLevel: 'world',
   selectedBlitz: false,
   selectedInputMode: false,
-  stats: loadFromStorage(STORAGE_KEYS.stats, getDefaultStats()),
-  unlockedAchievements: new Set(loadFromStorage(STORAGE_KEYS.achievements, [])),
-  soundEnabled: loadFromStorage(STORAGE_KEYS.sound, true),
-  theme: loadFromStorage(STORAGE_KEYS.theme, 'dark'),
+  stats: getDefaultStats(),
+  unlockedAchievements: new Set(),
+  soundEnabled: true,
+  theme: 'dark',
+  learnIndex: 0,
+  learnPool: [],
+  records: {}
 };
 
+// ---------- Event bus ----------
 const listeners = new Map();
 
 export function on(event, fn) {
   if (!listeners.has(event)) listeners.set(event, new Set());
   listeners.get(event).add(fn);
-  return () => listeners.get(event).delete(fn);
+  return () => off(event, fn);
+}
+
+export function off(event, fn) {
+  if (listeners.has(event)) listeners.get(event).delete(fn);
 }
 
 export function emit(event, data) {
   if (listeners.has(event)) {
-    listeners.get(event).forEach(fn => {
-      try { fn(data); } catch (e) { console.error(e); }
-    });
-  }
-}
-
-export function setState(patch) {
-  Object.assign(state, patch);
-  emit('change', state);
-}
-
-/* ============================================================
-   STATS
-   ============================================================ */
-export function saveStats() {
-  saveToStorage(STORAGE_KEYS.stats, state.stats);
-  emit('stats:changed', state.stats);
-}
-
-export function saveAchievements() {
-  saveToStorage(STORAGE_KEYS.achievements, [...state.unlockedAchievements]);
-  emit('achievements:changed', state.unlockedAchievements);
-}
-
-export function trackCorrectAnswer(key) {
-  state.stats.countryCorrect[key] = (state.stats.countryCorrect[key] || 0) + 1;
-  saveStats();
-}
-
-export function trackWrongAnswer(key) {
-  state.stats.countryErrors[key] = (state.stats.countryErrors[key] || 0) + 1;
-  saveStats();
-}
-
-export function trackCountryExplored(key) {
-  if (!state.stats.exploredCountries.includes(key)) {
-    state.stats.exploredCountries.push(key);
-    saveStats();
-    checkAchievements();
-  }
-}
-
-export function trackGameEnd(score, total, level, isBlitz) {
-  state.stats.gamesPlayed++;
-  if (score === total) {
-    state.stats.perfectGames++;
-    if (isBlitz) state.stats.blitzPerfect++;
-    if (level !== 'world') {
-      state.stats.continentsPerfected = state.stats.continentsPerfected || {};
-      state.stats.continentsPerfected[level] = true;
+    for (const fn of listeners.get(event)) {
+      try { fn(data); } catch (e) { console.error('Listener error:', event, e); }
     }
   }
-  saveStats();
-  checkAchievements();
 }
 
-export function getWeakCountries(limit = 8) {
-  const items = [];
-  for (const key of Object.keys(state.stats.countryErrors)) {
-    const errors = state.stats.countryErrors[key];
-    const correct = state.stats.countryCorrect[key] || 0;
-    const total = errors + correct;
-    if (total > 0 && errors > 0) {
-      items.push({ key, errors, correct, total, percent: errors / total });
-    }
-  }
-  items.sort((a, b) => b.percent - a.percent || b.errors - a.errors);
-  return items.slice(0, limit);
-}
-
-export function getRecords() {
-  return loadFromStorage(STORAGE_KEYS.records, {});
-}
-
-export function saveRecords(records) {
-  saveToStorage(STORAGE_KEYS.records, records);
-}
-
-/* ============================================================
-   ACHIEVEMENTS
-   ============================================================ */
-export function checkAchievements() {
-  const newlyUnlocked = [];
-  for (const a of ACHIEVEMENTS) {
-    if (!state.unlockedAchievements.has(a.id) && a.check(state.stats, state.unlockedAchievements)) {
-      state.unlockedAchievements.add(a.id);
-      newlyUnlocked.push(a);
-    }
-  }
-  if (newlyUnlocked.length) {
-    saveAchievements();
-    newlyUnlocked.forEach((a, i) => {
-      setTimeout(() => {
-        playAchievementSound();
-        emit('toast', { icon: a.icon, title: `Ачивка: ${a.name}`, desc: a.desc });
-      }, i * 700);
-    });
+// ---------- Storage ----------
+export function loadFromStorage(key, defaultValue) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return defaultValue;
+    return JSON.parse(raw);
+  } catch (e) {
+    console.warn('Storage parse error for', key, e);
+    try { localStorage.removeItem(key); } catch (_) {}
+    return defaultValue;
   }
 }
 
-export function getCurrentMasteryLevel() {
-  const games = state.stats.gamesPlayed;
-  for (let i = MASTERY_LEVELS.length - 1; i >= 0; i--) {
-    if (games >= MASTERY_LEVELS[i].minGames) {
-      return { ...MASTERY_LEVELS[i], index: i };
-    }
+export function saveToStorage(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) {
+    console.warn('Storage save error:', e);
   }
-  return MASTERY_LEVELS[0];
 }
 
-/* ============================================================
-   AUDIO
-   ============================================================ */
-let audioContext = null;
+// ---------- Audio (Web Audio API) ----------
+let audioCtx = null;
 
 export function initAudio() {
-  if (!audioContext) {
-    try {
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    } catch (_) {}
+  if (audioCtx) {
+    if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+    return audioCtx;
   }
-  if (audioContext && audioContext.state === 'suspended') audioContext.resume();
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    audioCtx = new Ctx();
+  } catch (e) {
+    audioCtx = null;
+  }
+  return audioCtx;
 }
 
-function playTone(frequency, duration, type = 'sine', volume = 0.08, delay = 0) {
-  if (!state.soundEnabled || !audioContext) return;
-  const t0 = audioContext.currentTime + delay;
-  const osc = audioContext.createOscillator();
-  const gain = audioContext.createGain();
+function tone(freq, duration, type = 'sine', delay = 0, vol = 0.12) {
+  if (!state.soundEnabled) return;
+  const ctx = initAudio();
+  if (!ctx) return;
+  const t0 = ctx.currentTime + delay;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
   osc.type = type;
-  osc.frequency.value = frequency;
-  gain.gain.setValueAtTime(0, t0);
-  gain.gain.linearRampToValueAtTime(volume, t0 + 0.015);
-  gain.gain.exponentialRampToValueAtTime(0.001, t0 + duration);
+  osc.frequency.setValueAtTime(freq, t0);
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.exponentialRampToValueAtTime(vol, t0 + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration / 1000);
   osc.connect(gain);
-  gain.connect(audioContext.destination);
+  gain.connect(ctx.destination);
   osc.start(t0);
-  osc.stop(t0 + duration + 0.05);
+  osc.stop(t0 + duration / 1000 + 0.02);
 }
 
-export function playCorrectSound() {
-  playTone(523, 0.1, 'sine', 0.06);
-  playTone(659, 0.1, 'sine', 0.06, 0.07);
-  playTone(784, 0.15, 'sine', 0.08, 0.14);
+function slideTone(f1, f2, duration, type = 'sine', vol = 0.12) {
+  if (!state.soundEnabled) return;
+  const ctx = initAudio();
+  if (!ctx) return;
+  const t0 = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(f1, t0);
+  osc.frequency.exponentialRampToValueAtTime(f2, t0 + duration / 1000);
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.exponentialRampToValueAtTime(vol, t0 + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration / 1000);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(t0);
+  osc.stop(t0 + duration / 1000 + 0.02);
 }
 
-export function playWrongSound() {
-  playTone(233, 0.2, 'triangle', 0.03);
-  playTone(207, 0.25, 'triangle', 0.03, 0.08);
-}
-
-export function playClickSound() {
-  playTone(880, 0.03, 'square', 0.015);
-}
-
-export function playAchievementSound() {
-  [523, 659, 784, 1047].forEach((f, i) =>
-    playTone(f, 0.15, 'triangle', 0.07, i * 0.09)
-  );
-}
-
-export function playRecordSound() {
-  [659, 784, 1047, 1319].forEach((f, i) =>
-    playTone(f, 0.18, 'sine', 0.08, i * 0.1)
-  );
-}
-
-export function playStreakSound() {
-  playTone(880, 0.08, 'sine', 0.05);
-  playTone(1100, 0.12, 'sine', 0.06, 0.06);
-}
-
-export function toggleSound() {
-  state.soundEnabled = !state.soundEnabled;
-  saveToStorage(STORAGE_KEYS.sound, state.soundEnabled);
-  if (state.soundEnabled) {
-    initAudio();
-    playClickSound();
+export const sfx = {
+  correct() {
+    tone(523, 120, 'sine', 0);
+    tone(659, 120, 'sine', 0.1);
+    tone(784, 180, 'sine', 0.2);
+  },
+  wrong() {
+    slideTone(233, 207, 200, 'triangle', 0.12);
+  },
+  click() {
+    tone(880, 30, 'square', 0, 0.06);
+  },
+  achievement() {
+    [523, 659, 784, 1047].forEach((f, i) => tone(f, 150, 'sine', i * 0.09, 0.14));
+  },
+  record() {
+    [659, 784, 1047, 1319].forEach((f, i) => tone(f, 180, 'sine', i * 0.1, 0.14));
+  },
+  streak() {
+    slideTone(880, 1100, 200, 'sine', 0.1);
   }
-  emit('sound:changed', state.soundEnabled);
-}
+};
 
-/* ============================================================
-   THEME
-   ============================================================ */
-export function applyTheme(theme) {
+// ---------- Theme ----------
+export function setTheme(theme) {
+  state.theme = theme;
   document.documentElement.setAttribute('data-theme', theme);
-  const btn = document.getElementById('theme-toggle');
-  if (btn) btn.textContent = THEME_ICONS[theme] || '🌙';
+  saveToStorage(STORAGE_KEYS.theme, theme);
   updateOceanColors();
   emit('theme:changed', theme);
 }
 
 export function cycleTheme() {
-  playClickSound();
-  const next = THEMES[(THEMES.indexOf(state.theme) + 1) % THEMES.length];
-  state.theme = next;
-  saveToStorage(STORAGE_KEYS.theme, next);
-  applyTheme(next);
+  const order = ['dark', 'light', 'retro'];
+  const idx = order.indexOf(state.theme);
+  const next = order[(idx + 1) % order.length];
+  setTheme(next);
+  return next;
 }
 
-function updateOceanColors() {
-  const style = getComputedStyle(document.documentElement);
-  const c1 = style.getPropertyValue('--ocean-1').trim();
-  const c2 = style.getPropertyValue('--ocean-2').trim();
-  const el1 = document.querySelector('.ocean-stop-1');
-  const el2 = document.querySelector('.ocean-stop-2');
-  if (el1) el1.setAttribute('stop-color', c1);
-  if (el2) el2.setAttribute('stop-color', c2);
+export function updateOceanColors() {
+  const styles = getComputedStyle(document.documentElement);
+  const c1 = styles.getPropertyValue('--ocean-1').trim();
+  const c2 = styles.getPropertyValue('--ocean-2').trim();
+  document.querySelectorAll('.ocean-stop-1').forEach(el => el.setAttribute('stop-color', c1));
+  document.querySelectorAll('.ocean-stop-2').forEach(el => el.setAttribute('stop-color', c2));
 }
 
-/* ============================================================
-   DAILY TASKS
-   ============================================================ */
-export function getDailyTasks() {
-  const today = new Date().toDateString();
-  const saved = loadFromStorage(STORAGE_KEYS.daily, {});
-  if (saved.date === today) return saved;
-
-  const tasks = [
-    { icon: '🎯', name: 'Точный стрелок', desc: 'Ответь правильно 7 раз', target: 7, type: 'correct' },
-    { icon: '🌍', name: 'Исследователь', desc: 'Изучи 5 новых стран', target: 5, type: 'explore' },
-    { icon: '⚡', name: 'Быстрый ум', desc: 'Сыграй 2 блиц-игры', target: 2, type: 'blitz' }
-  ];
-
-  const result = {
-    date: today,
-    tasks: tasks.map(t => ({ ...t, progress: 0, done: false }))
-  };
-  saveToStorage(STORAGE_KEYS.daily, result);
-  return result;
-}
-
-export function updateDailyTask(type, value = 1) {
-  const daily = getDailyTasks();
-  daily.tasks.forEach(task => {
-    if (task.type === type && !task.done) {
-      task.progress = Math.min(task.target, task.progress + value);
-      if (task.progress >= task.target) {
-        task.done = true;
-        emit('toast', { icon: '✅', title: 'Задание выполнено!', desc: task.name });
-      }
-    }
-  });
-  saveToStorage(STORAGE_KEYS.daily, daily);
-}
-
-/* ============================================================
-   UTILS
-   ============================================================ */
-export function shuffle(array) {
-  const arr = [...array];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
+// ---------- Stats ----------
+export function loadStats() {
+  const s = loadFromStorage(STORAGE_KEYS.stats, null);
+  if (s && typeof s === 'object') {
+    const merged = { ...getDefaultStats(), ...s };
+    if (!Array.isArray(merged.exploredCountries)) merged.exploredCountries = [];
+    merged.exploredCountries = [...new Set(merged.exploredCountries)];
+    state.stats = merged;
+  } else {
+    state.stats = getDefaultStats();
   }
-  return arr;
+  return state.stats;
 }
 
-export function vibrate(duration = 30) {
-  try { if (navigator.vibrate) navigator.vibrate(duration); } catch (_) {}
+export function saveStats() {
+  saveToStorage(STORAGE_KEYS.stats, state.stats);
+  emit('stats:changed', state.stats);
 }
 
-export function getFeatureKey(feature) {
-  const id = String(feature.id ?? '');
-  if (!id) return null;
-  if (id.startsWith('-')) return null;
-  return id.padStart(3, '0');
+export function loadAchievements() {
+  const arr = loadFromStorage(STORAGE_KEYS.achievements, []);
+  state.unlockedAchievements = new Set(Array.isArray(arr) ? arr : []);
 }
 
-export function getFlagEmoji(code) {
-  return code.toUpperCase().replace(/./g, c =>
-    String.fromCodePoint(127397 + c.charCodeAt(0))
-  );
+export function saveAchievements() {
+  saveToStorage(STORAGE_KEYS.achievements, [...state.unlockedAchievements]);
 }
 
-export function getFlagImage(code, className = 'flag-wrap') {
-  return `<div class="${className}">
-    <img src="https://flagcdn.com/w320/${code}.png" alt=""
-         onerror="this.outerHTML='<div class=q-emoji>${getFlagEmoji(code)}</div>'">
-  </div>`;
+export function checkAchievements() {
+  let newUnlocks = [];
+  for (const ach of ACHIEVEMENTS) {
+    if (state.unlockedAchievements.has(ach.id)) continue;
+    try {
+      if (ach.check(state.stats)) {
+        state.unlockedAchievements.add(ach.id);
+        newUnlocks.push(ach);
+      }
+    } catch (e) { /* ignore */ }
+  }
+  if (newUnlocks.length) {
+    saveAchievements();
+    emit('achievements:changed', newUnlocks);
+    for (const ach of newUnlocks) {
+      emit('toast', {
+        type: 'achievement',
+        text: `${ach.icon} ${ach.name}`,
+        timeout: 4000
+      });
+    }
+    sfx.achievement();
+  }
+}
+
+export function loadRecords() {
+  state.records = loadFromStorage(STORAGE_KEYS.records, {});
+}
+
+export function saveRecords() {
+  saveToStorage(STORAGE_KEYS.records, state.records);
+}
+
+export function recordKey(level, blitz, input) {
+  return `${level}|${blitz ? 'blitz' : 'classic'}|${input ? 'input' : 'click'}`;
+}
+
+export function getRecord(level, blitz, input) {
+  return state.records[recordKey(level, blitz, input)] || 0;
+}
+
+export function setRecord(level, blitz, input, score) {
+  const key = recordKey(level, blitz, input);
+  const prev = state.records[key] || 0;
+  if (score > prev) {
+    state.records[key] = score;
+    saveRecords();
+    return true;
+  }
+  return false;
+}
+
+// ---------- Mastery ----------
+export function currentMastery() {
+  return getMasteryLevel(state.stats.gamesPlayed);
+}
+
+export function masteryProgress() {
+  const cur = currentMastery();
+  const next = getNextMasteryLevel(state.stats.gamesPlayed);
+  if (!next) return 1;
+  const span = next.minGames - cur.minGames;
+  const done = state.stats.gamesPlayed - cur.minGames;
+  return Math.max(0, Math.min(1, done / span));
+}
+
+// ---------- Daily tasks ----------
+export function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export function loadDaily() {
+  const stored = loadFromStorage(STORAGE_KEYS.daily, null);
+  const today = todayKey();
+  if (!stored || stored.date !== today) {
+    return {
+      date: today,
+      progress: { gamesPlayed: 0, explored: 0, blitz: 0, correct: 0, streak: 0 },
+      claimed: []
+    };
+  }
+  if (!stored.progress) stored.progress = { gamesPlayed: 0, explored: 0, blitz: 0, correct: 0, streak: 0 };
+  if (!Array.isArray(stored.claimed)) stored.claimed = [];
+  return stored;
+}
+
+export function saveDaily(d) {
+  saveToStorage(STORAGE_KEYS.daily, d);
+}
+
+export function updateDailyTask(field, delta) {
+  const d = loadDaily();
+  if (!(field in d.progress)) return;
+  // Блиц-задача не должна учитываться в обычных играх — вызывающий сам решает
+  d.progress[field] = (d.progress[field] || 0) + delta;
+  saveDaily(d);
+  emit('daily:changed', d);
+}
+
+// ---------- Utils ----------
+export function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+export function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+export function pickRandom(arr, n = 1) {
+  const shuffled = shuffle(arr);
+  return n === 1 ? shuffled[0] : shuffled.slice(0, n);
 }
 
 export function normalizeAnswer(str) {
@@ -341,6 +327,7 @@ export function normalizeAnswer(str) {
 }
 
 export function levenshtein(a, b) {
+  if (a === b) return 0;
   const m = a.length, n = b.length;
   if (!m) return n;
   if (!n) return m;
@@ -350,31 +337,47 @@ export function levenshtein(a, b) {
   for (let i = 1; i <= m; i++) {
     for (let j = 1; j <= n; j++) {
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + cost
+      );
     }
   }
   return dp[m][n];
 }
 
-export function isAnswerCorrect(userInput, country) {
-  const user = normalizeAnswer(userInput);
-  if (!user) return false;
-  const targets = [
-    normalizeAnswer(country.name),
-    normalizeAnswer(country.capital)
-  ];
-  for (const t of targets) {
-    if (!t) continue;
-    if (t === user) return true;
-    const maxDist = t.length <= 5 ? 1 : 2;
-    if (levenshtein(t, user) <= maxDist) return true;
-    if (t.length >= 6 && user.length >= 4 && t.includes(user)) return true;
-  }
+export function fuzzyMatch(input, target) {
+  const a = normalizeAnswer(input);
+  const b = normalizeAnswer(target);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const maxDist = b.length <= 5 ? 1 : 2;
+  if (levenshtein(a, b) <= maxDist) return true;
+  if (a.length >= 4 && b.length >= 6 && b.includes(a)) return true;
+  if (b.length >= 4 && a.length >= 6 && a.includes(b)) return true;
   return false;
 }
 
-export function getCountryPoolForLevel(level, featureByKey) {
-  return Object.keys(COUNTRIES_DB).filter(key =>
-    featureByKey[key] && (level === 'world' || COUNTRIES_DB[key].level === level)
-  );
+export function fuzzyMatchAny(input, targets) {
+  return targets.some(t => fuzzyMatch(input, t));
+}
+
+export function getFeatureKey(feature) {
+  if (!feature || feature.id == null) return null;
+  const id = String(feature.id);
+  if (id.startsWith('-')) return null;
+  return id.padStart(3, '0');
+}
+
+export function debounce(fn, ms) {
+  let t;
+  return function (...args) {
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(this, args), ms);
+  };
+}
+
+export function formatNumber(n) {
+  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
