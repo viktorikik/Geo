@@ -41,8 +41,8 @@ export const STORAGE_KEYS = {
 // Порядок CDN: сначала те, что обычно доступны из РФ
 export const CDN_SOURCES = {
   countries: [
+    'countries-110m.json',
     'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json',
-    'https://fastly.jsdelivr.net/npm/world-atlas@2/countries-110m.json',
     'https://unpkg.com/world-atlas@2/countries-110m.json'
   ]
 };
