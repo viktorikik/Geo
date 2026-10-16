@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🌍 ГеоМастер — интерактивная карта мира</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌍</text></svg>">
+<title>🌍 ГеоМастер</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🌍%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -20,8 +20,12 @@
       <stop offset="0" class="ocean-stop-1"/>
       <stop offset="1" class="ocean-stop-2"/>
     </radialGradient>
-    <filter id="glow" x="-25%" y="-25%" width="150%" height="150%">
-      <feGaussianBlur stdDeviation="6"/>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
     </filter>
   </defs>
   <g id="viewport"></g>
@@ -29,24 +33,24 @@
 
 <div class="hud">
   <div class="logo">
-    🌍 Гео<span class="grad">Мастер</span>
-    <button class="icon-btn" id="sound-toggle" aria-label="Переключить звук" title="Звук">🔊</button>
-    <button class="icon-btn" id="theme-toggle" aria-label="Сменить тему" title="Тема">🌙</button>
-    <button class="icon-btn" id="search-btn" aria-label="Открыть поиск" title="Поиск">🔍</button>
+    <span class="logo-text">🌍 Гео<span class="grad">Мастер</span></span>
+    <button class="icon-btn" id="sound-toggle" aria-label="Звук">🔊</button>
+    <button class="icon-btn" id="theme-toggle" aria-label="Тема">🌙</button>
+    <button class="icon-btn" id="search-btn" aria-label="Поиск">🔍</button>
   </div>
   <div class="level-bar">
     <span id="level-icon">🌱</span>
     <span id="level-name">Новичок</span>
-    <div class="track"><div class="fill" id="level-fill" style="width:0%"></div></div>
+    <div class="track"><div class="fill" id="level-fill"></div></div>
   </div>
   <div class="modes">
-    <button id="btn-explore" class="mode-btn active" data-mode="explore">🧭 Карта</button>
-    <button id="btn-quiz" class="mode-btn" data-mode="setup">🎯 Викторина</button>
-    <button id="btn-learn" class="mode-btn" data-mode="learn">📖 Учить</button>
+    <button class="mode-btn active" data-mode="explore">🧭 Карта</button>
+    <button class="mode-btn" data-mode="setup">🎯 Викторина</button>
+    <button class="mode-btn" data-mode="learn">📖 Учить</button>
   </div>
   <div class="views">
-    <button id="view-flat" class="view-btn active" data-view="flat">🗺️ Плоская</button>
-    <button id="view-globe" class="view-btn" data-view="globe">🌐 Глобус</button>
+    <button class="view-btn active" data-view="flat">🗺️ Плоская</button>
+    <button class="view-btn" data-view="globe">🌐 Глобус</button>
   </div>
 </div>
 
@@ -56,86 +60,31 @@
     <div class="panel-handle-title" id="panel-handle-title">🧭 Исследование</div>
   </div>
   <div class="panel-content" id="panel-content">
-    <div class="skeleton">
-      <div class="skeleton-block w80 h40"></div>
-      <div class="skeleton-block w60"></div>
-      <div class="skeleton-block w80"></div>
-      <div class="skeleton-block w40"></div>
-    </div>
+    <div class="skeleton"></div>
   </div>
 </div>
 
 <div class="zoom-controls">
-  <button data-zoom="in" title="Приблизить" aria-label="Приблизить">+</button>
-  <button data-zoom="out" title="Отдалить" aria-label="Отдалить">−</button>
-  <button data-zoom="reset" title="Весь мир" aria-label="Сбросить вид">⌂</button>
+  <button data-zoom="in" aria-label="Приблизить">+</button>
+  <button data-zoom="out" aria-label="Отдалить">−</button>
+  <button data-zoom="reset" aria-label="Сброс">⌂</button>
 </div>
 
 <div id="tooltip"></div>
 
-<div class="modal-overlay" id="modal-country">
-  <div class="modal" id="modal-country-content"></div>
-</div>
-
-<div class="modal-overlay" id="modal-achievements">
-  <div class="modal">
-    <div class="modal-header">
-      <h2>🏆 Ачивки</h2>
-      <button class="close-btn" data-close="achievements" aria-label="Закрыть">✕</button>
-    </div>
-    <div id="achievements-content"></div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="modal-stats">
-  <div class="modal">
-    <div class="modal-header">
-      <h2>📊 Статистика</h2>
-      <button class="close-btn" data-close="stats" aria-label="Закрыть">✕</button>
-    </div>
-    <div id="stats-content"></div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="modal-daily">
-  <div class="modal">
-    <div class="modal-header">
-      <h2>📋 Задания на сегодня</h2>
-      <button class="close-btn" data-close="daily" aria-label="Закрыть">✕</button>
-    </div>
-    <div id="daily-content"></div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="modal-search">
-  <div class="modal">
-    <div class="modal-header">
-      <h2>🔍 Поиск страны</h2>
-      <button class="close-btn" data-close="search" aria-label="Закрыть">✕</button>
-    </div>
-    <input class="search-input" id="search-input" placeholder="Начни вводить название…">
-    <div class="search-results" id="search-results"></div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="modal-compare">
-  <div class="modal">
-    <div class="modal-header">
-      <h2>⚖️ Сравнение</h2>
-      <button class="close-btn" data-close="compare" aria-label="Закрыть">✕</button>
-    </div>
-    <div id="compare-content"></div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="modal-onboarding">
-  <div class="modal" id="modal-onboarding-content"></div>
-</div>
+<div class="modal-overlay" id="modal-country"><div class="modal" id="modal-country-content"></div></div>
+<div class="modal-overlay" id="modal-achievements"><div class="modal" id="modal-achievements-content"></div></div>
+<div class="modal-overlay" id="modal-stats"><div class="modal" id="modal-stats-content"></div></div>
+<div class="modal-overlay" id="modal-daily"><div class="modal" id="modal-daily-content"></div></div>
+<div class="modal-overlay" id="modal-search"><div class="modal" id="modal-search-content"></div></div>
+<div class="modal-overlay" id="modal-compare"><div class="modal" id="modal-compare-content"></div></div>
+<div class="modal-overlay" id="modal-onboarding"><div class="modal" id="modal-onboarding-content"></div></div>
+<div class="modal-overlay" id="modal-confirm"><div class="modal" id="modal-confirm-content"></div></div>
 
 <div class="toast-container" id="toast-container"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+<script src="https://unpkg.com/d3@7/dist/d3.min.js"></script>
+<script src="https://unpkg.com/topojson-client@3/dist/topojson-client.min.js"></script>
 <script type="module" src="src/main.js"></script>
 </body>
 </html>
