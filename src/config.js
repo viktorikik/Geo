@@ -1,7 +1,6 @@
-export const MAP_WIDTH = 960;
-export const MAP_HEIGHT = 500;
-export const QUESTION_TIME = 15;
-export const GLOBE_INITIAL_ROTATION = [-10, -20, 0];
+// src/config.js — только константы, никакой логики
+
+export const VIEWBOX = { w: 960, h: 500 };
 
 export const LEVELS = {
   world:   { name: 'Весь мир', icon: '🌍' },
@@ -9,7 +8,7 @@ export const LEVELS = {
   asia:    { name: 'Азия',     icon: '🏮' },
   africa:  { name: 'Африка',   icon: '🦁' },
   america: { name: 'Америка',  icon: '🗽' },
-  oceania: { name: 'Океания',  icon: '🏝️' },
+  oceania: { name: 'Океания',  icon: '🏝️' }
 };
 
 export const MASTERY_LEVELS = [
@@ -17,23 +16,39 @@ export const MASTERY_LEVELS = [
   { name: 'Исследователь', icon: '🧭', minGames: 5 },
   { name: 'Знаток',        icon: '🎓', minGames: 20 },
   { name: 'Эксперт',       icon: '🏆', minGames: 50 },
-  { name: 'Легенда',       icon: '👑', minGames: 100 },
+  { name: 'Легенда',       icon: '👑', minGames: 100 }
 ];
 
-export const STORAGE_KEYS = {
-  records: 'geomaster-records-v1',
-  theme: 'geomaster-theme',
-  sound: 'geomaster-sound',
-  stats: 'geomaster-stats-v2',
-  achievements: 'geomaster-achievements-v1',
-  onboarding: 'geomaster-onboarding',
-  daily: 'geomaster-daily',
+export const QUIZ = {
+  totalQuestions: 10,
+  blitzTime: 15,
+  blitzTick: 100,
+  blitzAutoNext: 1400,
+  maxHints: 2,
+  types: ['name', 'flag', 'capital']
 };
 
-export const QUESTION_TYPES = ['name', 'flag', 'capital'];
-export const THEMES = ['dark', 'light', 'retro'];
-export const THEME_ICONS = { dark: '🌙', light: '☀️', retro: '🗺️' };
+export const STORAGE_KEYS = {
+  stats: 'geomaster-stats-v2',
+  records: 'geomaster-records-v1',
+  achievements: 'geomaster-achievements-v1',
+  theme: 'geomaster-theme',
+  sound: 'geomaster-sound',
+  daily: 'geomaster-daily',
+  onboarding: 'geomaster-onboarding'
+};
 
-export function getRandomQuestionType() {
-  return QUESTION_TYPES[Math.floor(Math.random() * QUESTION_TYPES.length)];
-}
+export const CDN_SOURCES = {
+  countries: [
+    'https://unpkg.com/world-atlas@2/countries-110m.json',
+    'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'
+  ]
+};
+
+export const THEMES = ['dark', 'light', 'retro'];
+
+export const QUIZ_TYPE_LABEL = {
+  name: 'Название страны',
+  flag: 'Флаг страны',
+  capital: 'Столица'
+};
