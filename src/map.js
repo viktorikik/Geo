@@ -17,10 +17,10 @@ let globeMoved = false;
 
 function assertLibs() {
   if (typeof window.d3 === 'undefined') {
-    throw new Error('D3 не загрузился (все CDN недоступны). Кнопки викторины работают, но карта недоступна.');
+    throw new Error('D3 не загрузился. Проверьте d3.min.js в корне репозитория.');
   }
   if (typeof window.topojson === 'undefined') {
-    throw new Error('topojson-client не загрузился (все CDN недоступны).');
+    throw new Error('topojson-client не загрузился. Проверьте topojson-client.min.js.');
   }
 }
 
@@ -70,7 +70,6 @@ export function setMapMode(mode) {
 
   setProjection(mode);
 
-  // Океан
   oceanLayer.selectAll('*').remove();
   if (mode === 'globe') {
     oceanLayer.append('circle')
@@ -83,7 +82,6 @@ export function setMapMode(mode) {
       .attr('fill', 'url(#oceanGrad)');
   }
 
-  // Обводка и сетка
   haloLayer.selectAll('*').remove();
   if (mode === 'globe') {
     haloLayer.append('circle')
@@ -144,7 +142,7 @@ function setupZoom() {
   svg.call(zoomBehavior);
 
   dragBehavior = window.d3.drag()
-    .on('start', (event) => {
+    .on('start', () => {
       if (state.mapMode !== 'globe') return;
       globeDragging = true;
       globeMoved = false;
