@@ -1,0 +1,33 @@
+name: Fetch map dependencies
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download dependencies
+        run: |
+          curl -fsSL -o d3.min.js https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js
+          curl -fsSL -o topojson-client.min.js https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js
+          curl -fsSL -o countries-110m.json https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json
+
+      - name: Commit downloaded files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add d3.min.js topojson-client.min.js countries-110m.json
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: fetch map dependencies [skip ci]"
+            git push
+          fi
