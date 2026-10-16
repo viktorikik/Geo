@@ -1,321 +1,304 @@
-import {
-  MAP_WIDTH, MAP_HEIGHT, GLOBE_INITIAL_ROTATION,
-} from './config.js';
+// src/map.js — D3-карта
+import { VIEWBOX, CDN_SOURCES } from './config.js';
 import { COUNTRIES_DB } from './data.js';
-import {
-  state, emit, getFeatureKey,
-  initAudio, playClickSound, vibrate, saveStats, checkAchievements,
-} from './core.js';
+import { state, on, emit, getFeatureKey, escapeHtml } from './core.js';
 
-let svg, viewport, zoom, projection, pathGenerator;
-let spherePath, graticulePath, haloPath, globeDrag;
-let countryPaths = null;
-let globeScaleDefault = 220;
-const featureByKey = {};
-let highlightedFeature = null;
+let svg, viewport, projection, path, graticule;
+let countriesLayer, oceanLayer, haloLayer;
+let zoomBehavior, dragBehavior;
+let featureByKey = {};
+let features = [];
+let countryEls = new Map();
+let currentTransform = d3.zoomIdentity;
+let rotation = [0, 0, 0];
+let globeDragging = false;
+let globeMoved = false;
+let globeStart = null;
 
-export function getFeatureByKey() { return featureByKey; }
-export function getCountryPaths() { return countryPaths; }
-export function getProjection() { return projection; }
-
-/* ============================================================
-   INIT
-   ============================================================ */
-export async function initMap() {
-  let worldData;
-  try {
-    worldData = await d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
-  } catch (e) {
-    document.getElementById('panel-content').innerHTML =
-      '<h2>😢 Ошибка загрузки</h2><p>Проверь интернет и обнови страницу.</p>';
-    throw e;
-  }
-
-  const countries = topojson.feature(worldData, worldData.objects.countries);
-  countries.features.forEach(f => {
-    const key = getFeatureKey(f);
-    if (key && COUNTRIES_DB[key]) featureByKey[key] = f;
-  });
-
+export function initMap() {
   svg = d3.select('#map');
   viewport = d3.select('#viewport');
-  projection = d3.geoNaturalEarth1()
-    .fitExtent([[10, 10], [MAP_WIDTH - 10, MAP_HEIGHT - 10]], { type: 'Sphere' });
-  pathGenerator = d3.geoPath(projection);
 
-  haloPath = viewport.append('path')
-    .attr('fill', 'none')
-    .attr('stroke', 'rgba(96,165,250,.4)')
-    .attr('stroke-width', 8)
-    .attr('filter', 'url(#glow)')
-    .style('display', 'none');
+  oceanLayer = viewport.append('g').attr('class', 'ocean-layer');
+  haloLayer = viewport.append('g').attr('class', 'halo-layer');
+  graticule = d3.geoGraticule10();
+  countriesLayer = viewport.append('g').attr('class', 'countries-layer');
 
-  spherePath = viewport.append('path')
-    .attr('fill', 'url(#oceanGrad)')
-    .attr('stroke', 'rgba(255,255,255,.1)')
-    .attr('stroke-width', 1);
+  setProjection('flat');
+  setupZoom();
+  setupHover();
 
-  graticulePath = viewport.append('path')
-    .attr('fill', 'none')
-    .attr('stroke', 'rgba(255,255,255,.04)')
-    .attr('stroke-width', 0.5);
-
-  countryPaths = viewport.append('g').attr('id', 'countries')
-    .selectAll('path')
-    .data(countries.features)
-    .join('path')
-    .attr('d', pathGenerator)
-    .on('click', onClickCountry)
-    .on('mousemove', moveTooltip)
-    .on('mouseleave', () => {
-      document.getElementById('tooltip').style.display = 'none';
-    });
-
-  updateLandColors();
-  redrawAll();
-  setupZoomDrag();
-
-  state.ready = true;
-  emit('map:ready');
+  on('map:set-mode', (mode) => setMapMode(mode));
+  on('map:zoom', (action) => zoomAction(action));
 }
 
-/* ============================================================
-   RENDER
-   ============================================================ */
-export function redrawAll() {
-  if (!spherePath) return;
-  spherePath.attr('d', pathGenerator({ type: 'Sphere' }));
-  graticulePath.attr('d', pathGenerator(d3.geoGraticule10()));
-  haloPath.attr('d', pathGenerator({ type: 'Sphere' }));
-  countryPaths.attr('d', pathGenerator);
-}
-
-export function updateLandColors() {
-  if (!countryPaths) return;
-  const style = getComputedStyle(document.documentElement);
-  const known = style.getPropertyValue('--land-known').trim();
-  const unknown = style.getPropertyValue('--land-unknown').trim();
-  const border = style.getPropertyValue('--land-border').trim();
-  const hi = style.getPropertyValue('--land-highlight').trim();
-  const hiStroke = style.getPropertyValue('--land-highlight-stroke').trim();
-
-  countryPaths.each(function(d) {
-    const el = d3.select(this);
-    if (d.__highlighted) {
-      el.attr('fill', hi)
-        .attr('stroke', hiStroke)
-        .attr('stroke-width', 2)
-        .attr('filter', 'url(#glow)');
-    } else {
-      el.attr('fill', COUNTRIES_DB[getFeatureKey(d)] ? known : unknown)
-        .attr('stroke', border)
-        .attr('stroke-width', 0.6)
-        .attr('filter', null);
-    }
-  });
-}
-
-/* ============================================================
-   INTERACTIONS
-   ============================================================ */
-function onClickCountry(event, feature) {
-  initAudio();
-  if (state.mode === 'explore') {
-    highlightFeature(feature);
-    emit('country:clicked', getFeatureKey(feature));
-  } else if (state.mode === 'quiz' && state.quiz && !state.quiz.inputMode) {
-    emit('quiz:answer', { feature, key: getFeatureKey(feature) });
+function setProjection(mode) {
+  const w = VIEWBOX.w, h = VIEWBOX.h;
+  if (mode === 'globe') {
+    projection = d3.geoOrthographic()
+      .scale(230)
+      .translate([w / 2, h / 2])
+      .rotate(rotation)
+      .clipAngle(90);
+  } else {
+    projection = d3.geoNaturalEarth1()
+      .scale(160)
+      .translate([w / 2, h / 2]);
   }
-}
-
-function moveTooltip(event, feature) {
-  const tooltip = document.getElementById('tooltip');
-  if (state.mode !== 'explore') { tooltip.style.display = 'none'; return; }
-  const country = COUNTRIES_DB[getFeatureKey(feature)];
-  tooltip.textContent = country ? country.name : (feature.properties?.name || '');
-  tooltip.style.display = 'block';
-  tooltip.style.left = (event.clientX + 12) + 'px';
-  tooltip.style.top = (event.clientY + 14) + 'px';
-}
-
-export function highlightFeature(feature) {
-  if (highlightedFeature) highlightedFeature.__highlighted = false;
-  feature.__highlighted = true;
-  highlightedFeature = feature;
-  updateLandColors();
-  playClickSound();
-  vibrate(20);
-}
-
-export function clearHighlight() {
-  if (highlightedFeature) {
-    highlightedFeature.__highlighted = false;
-    highlightedFeature = null;
-    updateLandColors();
-  }
-}
-
-export function flashCountry(feature, type) {
-  if (!countryPaths) return;
-  countryPaths.filter(p => p === feature).classed(type, true);
-}
-
-export function clearFlash() {
-  if (countryPaths) countryPaths.classed('flash-correct', false).classed('flash-wrong', false);
-}
-
-/* ============================================================
-   ZOOM / DRAG
-   ============================================================ */
-function setupZoomDrag() {
-  zoom = d3.zoom()
-    .scaleExtent([1, 25])
-    .translateExtent([[0, 0], [MAP_WIDTH, MAP_HEIGHT]])
-    .on('zoom', ev => viewport.attr('transform', ev.transform));
-  svg.call(zoom);
-
-  globeDrag = d3.drag()
-    .clickDistance(5)
-    .on('start', () => svg.interrupt())
-    .on('drag', (event) => {
-      const k = 57.2958 / projection.scale();
-      const rot = projection.rotate();
-      const phi = Math.max(-85, Math.min(85, rot[1] - event.dy * k));
-      projection.rotate([rot[0] + event.dx * k, phi, 0]);
-      redrawAll();
-    });
-
-  setupPinch();
-}
-
-function setupPinch() {
-  let startDist = 0, startScale = 0;
-  const dist = (t1, t2) => Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
-
-  svg.on('touchstart.pinch', e => {
-    if (e.touches.length === 2) {
-      e.preventDefault();
-      startDist = dist(e.touches[0], e.touches[1]);
-      startScale = state.mapMode === 'globe'
-        ? projection.scale()
-        : d3.zoomTransform(svg.node()).k;
-    }
-  });
-
-  svg.on('touchmove.pinch', e => {
-    if (e.touches.length === 2) {
-      e.preventDefault();
-      const s = startScale * (dist(e.touches[0], e.touches[1]) / startDist);
-      if (state.mapMode === 'globe') {
-        projection.scale(Math.max(globeScaleDefault * 0.7, Math.min(globeScaleDefault * 5, s)));
-        redrawAll();
-      } else {
-        const t = d3.zoomTransform(svg.node());
-        const factor = Math.max(1, Math.min(25, s)) / t.k;
-        svg.call(zoom.transform, t.scale(factor));
-      }
-    }
-  });
+  path = d3.geoPath().projection(projection);
 }
 
 export function setMapMode(mode) {
-  if (!svg) return;
-  if (state.mapMode === mode) return;
   state.mapMode = mode;
-  document.getElementById('view-flat').classList.toggle('active', mode === 'flat');
-  document.getElementById('view-globe').classList.toggle('active', mode === 'globe');
-  document.getElementById('tooltip').style.display = 'none';
-  svg.interrupt();
-  playClickSound();
+  const w = VIEWBOX.w, h = VIEWBOX.h;
 
+  // Сброс трансформа
+  currentTransform = d3.zoomIdentity;
+  if (svg && zoomBehavior) svg.call(zoomBehavior.transform, d3.zoomIdentity);
+
+  setProjection(mode);
+
+  // Океан
+  oceanLayer.selectAll('*').remove();
   if (mode === 'globe') {
-    state.stats.globeSwitches = (state.stats.globeSwitches || 0) + 1;
-    saveStats();
-    checkAchievements();
+    oceanLayer.append('circle')
+      .attr('cx', w / 2)
+      .attr('cy', h / 2)
+      .attr('r', 230)
+      .attr('fill', 'url(#oceanGrad)');
+  } else {
+    oceanLayer.append('rect')
+      .attr('x', 0).attr('y', 0)
+      .attr('width', w).attr('height', h)
+      .attr('fill', 'url(#oceanGrad)');
   }
 
-  if (mode === 'flat') {
-    svg.on('.drag', null);
-    projection = d3.geoNaturalEarth1()
-      .fitExtent([[10, 10], [MAP_WIDTH - 10, MAP_HEIGHT - 10]], { type: 'Sphere' });
-    haloPath.style('display', 'none');
-    svg.call(zoom);
-    svg.call(zoom.transform, d3.zoomIdentity);
-  } else {
-    svg.on('.zoom', null);
-    viewport.attr('transform', null);
-    projection = d3.geoOrthographic().clipAngle(90)
-      .fitExtent([[30, 30], [MAP_WIDTH - 30, MAP_HEIGHT - 30]], { type: 'Sphere' });
-    globeScaleDefault = projection.scale();
-    projection.rotate(GLOBE_INITIAL_ROTATION);
-    haloPath.style('display', null);
-    svg.call(globeDrag);
+  // Сетка
+  haloLayer.selectAll('*').remove();
+  if (mode === 'globe') {
+    haloLayer.append('circle')
+      .attr('cx', w / 2).attr('cy', h / 2).attr('r', 230)
+      .attr('fill', 'none')
+      .attr('stroke', 'var(--accent-1)')
+      .attr('stroke-width', 1)
+      .attr('opacity', 0.5);
   }
-  pathGenerator = d3.geoPath(projection);
-  redrawAll();
-  updateLandColors();
+  haloLayer.append('path')
+    .datum(graticule)
+    .attr('class', 'graticule')
+    .attr('d', path);
+
+  renderCountries();
+  updateZoomBehavior(mode);
+
+  // Событие для страниц
   emit('map:mode-changed', mode);
 }
 
-export function zoomTo(feature) {
-  if (!svg) return;
-  if (state.mapMode === 'globe') { rotateTo(feature); return; }
-  const [[x0, y0], [x1, y1]] = pathGenerator.bounds(feature);
-  const s = Math.max(1, Math.min(12,
-    0.65 / Math.max((x1 - x0) / MAP_WIDTH, (y1 - y0) / MAP_HEIGHT)));
-  const tx = MAP_WIDTH / 2 - s * (x0 + x1) / 2;
-  const ty = MAP_HEIGHT / 2 - s * (y0 + y1) / 2;
-  svg.transition().duration(700)
-    .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(s));
-}
+function renderCountries() {
+  countriesLayer.selectAll('*').remove();
+  countryEls.clear();
+  for (const f of features) {
+    const key = getFeatureKey(f);
+    if (!key) continue;
+    if (!COUNTRIES_DB[key]) continue;
 
-function rotateTo(feature) {
-  const [lon, lat] = d3.geoCentroid(feature);
-  const cur = projection.rotate();
-  let targetLon = -lon;
-  while (targetLon - cur[0] > 180) targetLon -= 360;
-  while (targetLon - cur[0] < -180) targetLon += 360;
-  const target = [targetLon, Math.max(-85, Math.min(85, -lat)), 0];
-  const interp = d3.interpolate(cur, target);
-  svg.transition('rotate').duration(700).ease(d3.easeCubicInOut)
-    .tween('rotate', () => t => {
-      projection.rotate(interp(t));
-      redrawAll();
-    });
-}
-
-export function resetZoom() {
-  if (!svg) return;
-  clearHighlight();
-  if (state.mapMode === 'flat') {
-    svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
-  } else {
-    const cur = projection.rotate();
-    let targetLon = GLOBE_INITIAL_ROTATION[0];
-    while (targetLon - cur[0] > 180) targetLon -= 360;
-    while (targetLon - cur[0] < -180) targetLon += 360;
-    const rI = d3.interpolate(cur, [targetLon, GLOBE_INITIAL_ROTATION[1], 0]);
-    const sI = d3.interpolate(projection.scale(), globeScaleDefault);
-    svg.transition('reset').duration(500)
-      .tween('reset', () => t => {
-        projection.rotate(rI(t));
-        projection.scale(sI(t));
-        redrawAll();
-      });
+    const el = countriesLayer.append('path')
+      .datum(f)
+      .attr('class', 'country clickable')
+      .attr('d', path)
+      .attr('data-id', key);
+    countryEls.set(key, el);
+    if (state.stats.exploredCountries.includes(key)) {
+      el.classed('known', true);
+    }
   }
 }
 
-export function zoomBy(factor) {
-  if (!svg) return;
-  playClickSound();
-  if (state.mapMode === 'flat') {
-    svg.transition().duration(250).call(zoom.scaleBy, factor);
-  } else {
-    const cur = projection.scale();
-    const target = Math.max(globeScaleDefault * 0.7, Math.min(globeScaleDefault * 5, cur * factor));
-    svg.transition('zoomGlobe').duration(200).tween('scale', () => {
-      const i = d3.interpolate(cur, target);
-      return t => { projection.scale(i(t)); redrawAll(); };
-    });
+function redraw() {
+  if (!path) return;
+  // Океан
+  if (state.mapMode === 'globe') {
+    const w = VIEWBOX.w, h = VIEWBOX.h;
+    oceanLayer.selectAll('circle').attr('cx', w/2).attr('cy', h/2);
   }
+  haloLayer.selectAll('path.graticule').attr('d', path);
+  countriesLayer.selectAll('path.country').attr('d', path);
+}
+
+function setupZoom() {
+  zoomBehavior = d3.zoom()
+    .scaleExtent([1, 25])
+    .on('zoom', (event) => {
+      if (state.mapMode === 'globe') return;
+      currentTransform = event.transform;
+      countriesLayer.attr('transform', event.transform);
+      haloLayer.attr('transform', event.transform);
+    });
+  svg.call(zoomBehavior);
+
+  dragBehavior = d3.drag()
+    .on('start', (event) => {
+      if (state.mapMode !== 'globe') return;
+      globeDragging = true;
+      globeMoved = false;
+      const p = projection.invert([event.x, event.y]);
+      globeStart = p ? { x: p[0], y: p[1] } : { x: event.x, y: event.y };
+    })
+    .on('drag', (event) => {
+      if (state.mapMode !== 'globe' || !globeDragging) return;
+      globeMoved = true;
+      const sens = 0.25;
+      rotation[0] += event.dx * sens;
+      rotation[1] -= event.dy * sens;
+      rotation[1] = Math.max(-90, Math.min(90, rotation[1]));
+      projection.rotate(rotation);
+      redraw();
+    })
+    .on('end', () => {
+      globeDragging = false;
+      setTimeout(() => { globeMoved = false; }, 50);
+    });
+  svg.call(dragBehavior);
+}
+
+function updateZoomBehavior(mode) {
+  if (mode === 'globe') {
+    svg.on('.zoom', null);
+    svg.call(dragBehavior);
+  } else {
+    svg.call(zoomBehavior);
+  }
+}
+
+function zoomAction(action) {
+  if (state.mapMode === 'globe') return;
+  const w = VIEWBOX.w, h = VIEWBOX.h;
+  if (action === 'in') {
+    svg.transition().duration(250).call(zoomBehavior.scaleBy, 1.6);
+  } else if (action === 'out') {
+    svg.transition().duration(250).call(zoomBehavior.scaleBy, 1/1.6);
+  } else if (action === 'reset') {
+    svg.transition().duration(400).call(zoomBehavior.transform, d3.zoomIdentity);
+  }
+}
+
+export function zoomToFeature(key) {
+  if (state.mapMode === 'globe') {
+    const f = featureByKey[key];
+    if (!f) return;
+    const c = d3.geoCentroid(f);
+    rotation = [-c[0], -c[1], 0];
+    projection.rotate(rotation);
+    redraw();
+    return;
+  }
+  const f = featureByKey[key];
+  if (!f) return;
+  const bounds = path.bounds(f);
+  const w = VIEWBOX.w, h = VIEWBOX.h;
+  const dx = bounds[1][0] - bounds[0][0];
+  const dy = bounds[1][1] - bounds[0][1];
+  const x = (bounds[0][0] + bounds[1][0]) / 2;
+  const y = (bounds[0][1] + bounds[1][1]) / 2;
+  const scale = Math.max(1, Math.min(8, 0.7 / Math.max(dx / w, dy / h)));
+  const translate = [w / 2 - scale * x, h / 2 - scale * y];
+  svg.transition().duration(600).call(
+    zoomBehavior.transform,
+    d3.zoomIdentity.translate(translate[0], translate[1]).scale(scale)
+  );
+}
+
+export function highlightFeature(key, on = true) {
+  const el = countryEls.get(key);
+  if (el) el.classed('highlighted', on);
+}
+
+export function clearHighlights() {
+  countryEls.forEach(el => el.classed('highlighted', false));
+}
+
+export function flashFeature(key, type) {
+  const el = countryEls.get(key);
+  if (!el) return;
+  el.classed('flash-' + type, true);
+  setTimeout(() => el.classed('flash-' + type, false), 900);
+}
+
+export function markKnown(key) {
+  const el = countryEls.get(key);
+  if (el) el.classed('known', true);
+}
+
+export function refreshKnown() {
+  countryEls.forEach((el, key) => {
+    el.classed('known', state.stats.exploredCountries.includes(key));
+  });
+}
+
+// ---------- Hover tooltip ----------
+function setupHover() {
+  const tooltip = document.getElementById('tooltip');
+  if (!tooltip) return;
+
+  countriesLayer.on('mousemove', (event) => {
+    const key = event.target.getAttribute && event.target.getAttribute('data-id');
+    if (!key) {
+      tooltip.classList.remove('show');
+      return;
+    }
+    const c = COUNTRIES_DB[key];
+    if (!c) {
+      tooltip.classList.remove('show');
+      return;
+    }
+    tooltip.textContent = c.name;
+    tooltip.style.left = (event.clientX + 14) + 'px';
+    tooltip.style.top = (event.clientY + 14) + 'px';
+    tooltip.classList.add('show');
+  });
+  countriesLayer.on('mouseleave', () => tooltip.classList.remove('show'));
+}
+
+// ---------- Data loading ----------
+export async function loadGeoData() {
+  let lastErr = null;
+  for (const url of CDN_SOURCES.countries) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const topo = await res.json();
+      const geo = topojson.feature(topo, topo.objects.countries);
+      features = geo.features;
+      featureByKey = {};
+      for (const f of features) {
+        const key = getFeatureKey(f);
+        if (key && COUNTRIES_DB[key]) {
+          featureByKey[key] = f;
+        }
+      }
+      return true;
+    } catch (e) {
+      lastErr = e;
+      console.warn('Geo load failed:', url, e);
+    }
+  }
+  throw lastErr || new Error('Не удалось загрузить геоданные');
+}
+
+// Клик по стране
+export function bindMapClick() {
+  viewport.on('click', (event) => {
+    if (state.mapMode === 'globe' && globeMoved) return;
+    const target = event.target;
+    if (!target || !target.getAttribute) return;
+    const key = target.getAttribute('data-id');
+    if (!key) return;
+    if (!COUNTRIES_DB[key]) return;
+    emit('country:clicked', key);
+  });
+}
+
+export function getFeatureByKey(key) {
+  return featureByKey[key];
 }
