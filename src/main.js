@@ -2,193 +2,216 @@
 import {
   state, on, emit, loadStats, loadAchievements, loadRecords,
   setTheme, saveStats, checkAchievements, initAudio,
-  sfx, cycleTheme, currentMastery, masteryProgress,
-  loadFromStorage, STORAGE_KEYS, escapeHtml
+  sfx, currentMastery, loadFromStorage
 } from './core.js';
-import { initUI, closeAllModals, openModal, closeModal } from './ui.js';
-import { initMap, loadGeoData, bindMapClick, flashFeature, refreshKnown, getFeatureByKey } from './map.js';
+import { STORAGE_KEYS } from './config.js';
+import { initUI } from './ui.js';
+import { initMap, loadGeoData, bindMapClick, flashFeature, refreshKnown } from './map.js';
 import { initQuiz } from './quiz.js';
-import { initScreens, renderExplore, showOnboardingIfNeeded, handleMode } from './screens.js';
-import { COUNTRIES_DB, getFlagEmoji } from './data.js';
-import { VIEWBOX } from './config.js';
+import { initScreens, showOnboardingIfNeeded, handleMode } from './screens.js';
 
+// ---------- Динамическая загрузка d3 / topojson ----------
+const D3_SOURCES = [
+  'https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js',
+  'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js',
+  'https://fastly.jsdelivr.net/npm/d3@7/dist/d3.min.js',
+  'https://unpkg.com/d3@7/dist/d3.min.js'
+];
+
+const TOPOJSON_SOURCES = [
+  'https://cdnjs.cloudflare.com/ajax/libs/topojson-client/3.1.0/topojson-client.min.js',
+  'https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js',
+  'https://fastly.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js',
+  'https://unpkg.com/topojson-client@3/dist/topojson-client.min.js'
+];
+
+function loadScriptOnce(url, timeoutMs = 7000) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = url;
+    s.async = true;
+    let done = false;
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true;
+      s.onload = s.onerror = null;
+      try { s.remove(); } catch (_) {}
+      reject(new Error('timeout: ' + url));
+    }, timeoutMs);
+    s.onload = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      resolve(url);
+    };
+    s.onerror = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      try { s.remove(); } catch (_) {}
+      reject(new Error('error: ' + url));
+    };
+    document.head.appendChild(s);
+  });
+}
+
+async function ensureLib(globalName, sources) {
+  if (typeof window[globalName] !== 'undefined') {
+    return true;
+  }
+  for (const url of sources) {
+    try {
+      setBootStatus(`Загрузка ${globalName}…`);
+      await loadScriptOnce(url);
+      if (typeof window[globalName] !== 'undefined') {
+        console.log(`[GeoMaster] ${globalName} loaded: ${url}`);
+        return true;
+      }
+    } catch (e) {
+      console.warn(`[GeoMaster] ${globalName} fail: ${url}`, e.message);
+    }
+  }
+  return false;
+}
+
+// ---------- Видимые баннеры (т.к. пользователь не видит консоль) ----------
+function setBootStatus(text) {
+  let el = document.getElementById('boot-status');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'boot-status';
+    el.style.cssText = 'position:fixed;bottom:12px;left:50%;transform:translateX(-50%);' +
+      'font-size:11px;color:#94a3b8;background:rgba(0,0,0,0.7);padding:5px 12px;' +
+      'border-radius:999px;z-index:200;pointer-events:none;backdrop-filter:blur(8px);';
+    document.body.appendChild(el);
+  }
+  if (text) {
+    el.textContent = text;
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+function showErrorBanner(html) {
+  const existing = document.getElementById('gm-error-banner');
+  if (existing) existing.remove();
+  const banner = document.createElement('div');
+  banner.id = 'gm-error-banner';
+  banner.style.cssText = 'position:fixed;bottom:16px;left:16px;right:16px;max-width:480px;' +
+    'margin:0 auto;padding:14px 16px;border-radius:14px;' +
+    'background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.5);' +
+    'color:#fff;font-size:13px;line-height:1.5;z-index:300;' +
+    'box-shadow:0 8px 32px rgba(0,0,0,0.5);backdrop-filter:blur(12px);';
+  banner.innerHTML = html;
+  document.body.appendChild(banner);
+  return banner;
+}
+
+// ---------- Инициализация ----------
 function bootstrapStorage() {
-  // Тема
   const theme = loadFromStorage(STORAGE_KEYS.theme, 'dark');
   setTheme(theme);
   const themeIcon = theme === 'dark' ? '🌙' : theme === 'light' ? '☀️' : '🎨';
   const tt = document.getElementById('theme-toggle');
   if (tt) tt.textContent = themeIcon;
 
-  // Звук
   const snd = loadFromStorage(STORAGE_KEYS.sound, true);
   state.soundEnabled = snd !== false;
   const st = document.getElementById('sound-toggle');
   if (st) st.textContent = state.soundEnabled ? '🔊' : '🔇';
 
-  // Stats, achievements, records
   loadStats();
   loadAchievements();
   loadRecords();
 }
 
 async function init() {
-  bootstrapStorage();
-  initUI();
-  initMap();
-  initQuiz();
-  initScreens();
-
-  // первое действие пользователя — инициализация аудио
-  const onceInitAudio = () => {
-    initAudio();
-    document.removeEventListener('pointerdown', onceInitAudio);
-    document.removeEventListener('keydown', onceInitAudio);
-  };
-  document.addEventListener('pointerdown', onceInitAudio);
-  document.addEventListener('keydown', onceInitAudio);
-
-  // Загрузка геоданных
   try {
-    await loadGeoData();
-  } catch (e) {
-    console.error('Не удалось загрузить карту:', e);
-    const banner = document.createElement('div');
-    banner.className = 'error-banner';
-    banner.innerHTML = `
-      <b>⚠️ Карта не загрузилась.</b><br>
-      Проверьте интернет или замените CDN в index.html: <br>
-      <code>unpkg</code> ↔ <code>jsdelivr</code>
-    `;
-    document.body.appendChild(banner);
-    setTimeout(() => banner.remove(), 12000);
-  }
+    // ===== 1. Мгновенно оживляем UI =====
+    bootstrapStorage();
+    initUI();
+    initScreens();   // ← кнопки Карта/Викторина/Учить, звук/тема/поиск — вешаются ЗДЕСЬ
+    initQuiz();      // ← quiz.js не зависит от d3
 
-  bindMapClick();
-  refreshKnown();
+    // Первое действие пользователя — инициализация аудио
+    const onceInitAudio = () => {
+      initAudio();
+      document.removeEventListener('pointerdown', onceInitAudio);
+      document.removeEventListener('keydown', onceInitAudio);
+    };
+    document.addEventListener('pointerdown', onceInitAudio);
+    document.addEventListener('keydown', onceInitAudio);
 
-  // Клавиши: +/−/Home, R
-  document.addEventListener('keydown', (e) => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (e.key === '+' || e.key === '=') emit('map:zoom', 'in');
-    else if (e.key === '-' || e.key === '_') emit('map:zoom', 'out');
-    else if (e.key === 'Home' || e.key.toLowerCase() === 'r') emit('map:zoom', 'reset');
-    else if (e.key.toLowerCase() === 's') document.getElementById('search-btn')?.click();
-  });
+    // Горячие клавиши карты
+    document.addEventListener('keydown', (e) => {
+      const tag = e.target && e.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (e.key === '+' || e.key === '=') emit('map:zoom', 'in');
+      else if (e.key === '-' || e.key === '_') emit('map:zoom', 'out');
+      else if (e.key === 'Home' || e.key.toLowerCase() === 'r') emit('map:zoom', 'reset');
+    });
 
-  // Flash + feedback по карте
-  on('quiz:feedback', ({ correct, correctId, clickedId }) => {
-    if (clickedId) flashFeature(clickedId, correct ? 'correct' : 'wrong');
-    if (!correct) flashFeature(correctId, 'correct');
-  });
+    // ===== 2. Грузим библиотеки карты =====
+    setBootStatus('Загрузка библиотек…');
+    const [hasD3, hasTopo] = await Promise.all([
+      ensureLib('d3', D3_SOURCES),
+      ensureLib('topojson', TOPOJSON_SOURCES)
+    ]);
 
-  // Сохранение рекордов и проверка ачивок после викторины
-  on('quiz:results', (payload) => {
-    const key = `${payload.level}|${payload.blitz ? 'blitz' : 'classic'}|${payload.inputMode ? 'input' : 'click'}`;
-    const prev = state.records[key] || 0;
-    let isRecord = false;
-    if (payload.score > prev) {
-      state.records[key] = payload.score;
-      isRecord = true;
-    }
-    saveStats();
-    checkAchievements();
-    // обновим UI результата
-    payload.isRecord = isRecord;
-    // эмитим обратно — screens перерисует
-    if (isRecord) {
-      sfx.record();
-      emit('toast', { type: 'achievement', text: '🎉 Новый рекорд: ' + payload.score + '!' });
-    }
-    // Перерисуем панель с учётом рекорда
-    // (screens уже отрисовал, но без isRecord — поэтому повторно)
-    setTimeout(() => {
-      // повторная отрисовка с флагом
-      emit('quiz:results:render', payload);
-    }, 0);
-  });
+    // ===== 3. Инициализируем карту =====
+    if (hasD3 && hasTopo) {
+      setBootStatus('Загрузка карты…');
+      try {
+        initMap();
+        await loadGeoData();
+        bindMapClick();
+        refreshKnown();
 
-  // Обновление known на карте
-  on('stats:changed', () => {
-    refreshKnown();
-  });
-
-  // Поделиться результатом
-  on('share-result', async (payload) => {
-    try {
-      const canvas = await makeShareImage(payload);
-      const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], 'geomaster.png', { type: 'image/png' })] })) {
-        await navigator.share({
-          files: [new File([blob], 'geomaster.png', { type: 'image/png' })],
-          title: 'ГеоМастер',
-          text: `Мой результат: ${payload.score} очков!`
+        // Связка map ↔ quiz
+        on('quiz:feedback', ({ correct, correctId, clickedId }) => {
+          if (clickedId) flashFeature(clickedId, correct ? 'correct' : 'wrong');
+          if (!correct) flashFeature(correctId, 'correct');
         });
-      } else {
-        const a = document.createElement('a');
-        a.href = canvas.toDataURL('image/png');
-        a.download = 'geomaster-result.png';
-        a.click();
+        on('stats:changed', () => refreshKnown());
+
+        setBootStatus('');
+      } catch (e) {
+        console.error('[GeoMaster] Map init failed:', e);
+        setBootStatus('');
+        showErrorBanner(
+          '<b>⚠️ Карта не загрузилась</b><br>' +
+          'Причина: ' + (e.message || e) + '<br><br>' +
+          'Кнопки викторины работают — можно играть без карты. ' +
+          'Но для полной работы проверьте доступ к CDN.'
+        );
       }
-    } catch (e) {
-      console.warn('Share failed:', e);
-      emit('toast', { type: 'error', text: 'Не удалось поделиться' });
+    } else {
+      // Библиотеки не загрузились ни с одного CDN
+      setBootStatus('');
+      showErrorBanner(
+        '<b>⚠️ Библиотеки карты (d3/topojson) недоступны</b><br>' +
+        'Скорее всего, ваш провайдер блокирует внешние CDN. ' +
+        'Кнопки викторины работают, но карта недоступна.<br><br>' +
+        '<b>Решение:</b> скачайте <code>d3.min.js</code> и <code>topojson-client.min.js</code> ' +
+        'и положите рядом с <code>index.html</code>, затем в <code>index.html</code> ' +
+        'подключите их как <code>&lt;script src="d3.min.js"&gt;&lt;/script&gt;</code>.'
+      );
     }
-  });
 
-  // Роутинг: стартовый экран
-  handleMode('explore');
-
-  state.ready = true;
-  showOnboardingIfNeeded();
+    // ===== 4. Роутинг =====
+    handleMode('explore');
+    state.ready = true;
+    showOnboardingIfNeeded();
+  } catch (e) {
+    console.error('[GeoMaster] Critical init error:', e);
+    showErrorBanner(
+      '<b>⚠️ Ошибка инициализации</b><br>' +
+      (e && e.message ? e.message : String(e))
+    );
+  }
 }
 
-async function makeShareImage(payload) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 600;
-  canvas.height = 400;
-  const ctx = canvas.getContext('2d');
-  // фон
-  ctx.fillStyle = '#0b1220';
-  ctx.fillRect(0, 0, 600, 400);
-  // градиентная полоса
-  const grad = ctx.createLinearGradient(0, 0, 600, 0);
-  grad.addColorStop(0, '#38bdf8');
-  grad.addColorStop(1, '#a78bfa');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 600, 8);
-  // заголовок
-  ctx.fillStyle = '#94a3b8';
-  ctx.font = '600 18px Manrope, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('🌍 ГеоМастер', 300, 60);
-  // счёт
-  ctx.fillStyle = '#e2e8f0';
-  ctx.font = '800 96px Manrope, sans-serif';
-  ctx.fillText(String(payload.score), 300, 190);
-  // сообщение
-  const msg = payload.perfect ? 'Идеально! 🎉' : `Верно: ${payload.correctCount}/${payload.total}`;
-  ctx.fillStyle = '#94a3b8';
-  ctx.font = '600 18px Manrope, sans-serif';
-  ctx.fillText(msg, 300, 240);
-  // уровень
-  const mastery = currentMastery();
-  ctx.fillStyle = '#38bdf8';
-  ctx.font = '700 20px Manrope, sans-serif';
-  ctx.fillText(`${mastery.icon} ${mastery.name}`, 300, 300);
-  // подвал
-  ctx.fillStyle = '#64748b';
-  ctx.font = '500 14px Manrope, sans-serif';
-  ctx.fillText('geomaster', 300, 370);
-  return canvas;
-}
-
-// Дать экранам перерисовать результат с флагом рекорда
-on('quiz:results:render', (payload) => {
-  // no-op: панель уже отрисована в screens, флаг можно использовать в след. раз.
-});
-
-// Запуск
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
 } else {
