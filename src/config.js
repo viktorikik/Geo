@@ -38,10 +38,12 @@ export const STORAGE_KEYS = {
   onboarding: 'geomaster-onboarding'
 };
 
+// Порядок: сначала CDN, которые обычно доступны из РФ, потом резервные
 export const CDN_SOURCES = {
   countries: [
-    'https://unpkg.com/world-atlas@2/countries-110m.json',
-    'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'
+    'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json',
+    'https://fastly.jsdelivr.net/npm/world-atlas@2/countries-110m.json',
+    'https://unpkg.com/world-atlas@2/countries-110m.json'
   ]
 };
 
