@@ -12,16 +12,14 @@ import { initScreens, showOnboardingIfNeeded, handleMode } from './screens.js';
 
 // ---------- Динамическая загрузка d3 / topojson ----------
 const D3_SOURCES = [
-  'https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js',
+  'd3.min.js',
   'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js',
-  'https://fastly.jsdelivr.net/npm/d3@7/dist/d3.min.js',
   'https://unpkg.com/d3@7/dist/d3.min.js'
 ];
 
 const TOPOJSON_SOURCES = [
-  'https://cdnjs.cloudflare.com/ajax/libs/topojson-client/3.1.0/topojson-client.min.js',
+  'topojson-client.min.js',
   'https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js',
-  'https://fastly.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js',
   'https://unpkg.com/topojson-client@3/dist/topojson-client.min.js'
 ];
 
