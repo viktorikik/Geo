@@ -83,8 +83,17 @@
 
 <div class="toast-container" id="toast-container"></div>
 
-<script src="https://unpkg.com/d3@7/dist/d3.min.js"></script>
-<script src="https://unpkg.com/topojson-client@3/dist/topojson-client.min.js"></script>
+<!-- ==================== CDN: d3 с fallback ==================== -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script>window.d3 || document.write('<script src="https://cdn.jsdelivr.net/npm/d3@7"><\/script>');</script>
+<script>window.d3 || document.write('<script src="https://unpkg.com/d3@7/dist/d3.min.js"><\/script>');</script>
+
+<!-- ==================== CDN: topojson-client с fallback ==================== -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson-client/3.1.0/topojson-client.min.js"></script>
+<script>window.topojson || document.write('<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"><\/script>');</script>
+<script>window.topojson || document.write('<script src="https://unpkg.com/topojson-client@3/dist/topojson-client.min.js"><\/script>');</script>
+
+<!-- ==================== Точка входа ==================== -->
 <script type="module" src="src/main.js"></script>
 </body>
 </html>
