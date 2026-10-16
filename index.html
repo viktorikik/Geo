@@ -83,17 +83,14 @@
 
 <div class="toast-container" id="toast-container"></div>
 
-<!-- ==================== CDN: d3 с fallback ==================== -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
-<script>window.d3 || document.write('<script src="https://cdn.jsdelivr.net/npm/d3@7"><\/script>');</script>
-<script>window.d3 || document.write('<script src="https://unpkg.com/d3@7/dist/d3.min.js"><\/script>');</script>
+<!--
+  d3 и topojson подгружаются динамически из main.js с fallback между
+  4 CDN (cdnjs → jsdelivr → fastly.jsdelivr → unpkg) и таймаутом 7 сек.
+  Никаких <script src=d3> здесь — иначе браузер блокирует парсинг HTML,
+  если CDN недоступен.
+-->
 
-<!-- ==================== CDN: topojson-client с fallback ==================== -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson-client/3.1.0/topojson-client.min.js"></script>
-<script>window.topojson || document.write('<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"><\/script>');</script>
-<script>window.topojson || document.write('<script src="https://unpkg.com/topojson-client@3/dist/topojson-client.min.js"><\/script>');</script>
-
-<!-- ==================== Точка входа ==================== -->
-<script type="module" src="src/main.js"></script>
+<!-- Точка входа. ?v=3 — cache buster, чтобы Safari на iOS не взял старую версию -->
+<script type="module" src="src/main.js?v=3"></script>
 </body>
 </html>
