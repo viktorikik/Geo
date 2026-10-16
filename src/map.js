@@ -9,19 +9,32 @@ let zoomBehavior, dragBehavior;
 let featureByKey = {};
 let features = [];
 let countryEls = new Map();
-let currentTransform = d3.zoomIdentity;
+let currentTransform = d3 && d3.zoomIdentity ? d3.zoomIdentity : null;
 let rotation = [0, 0, 0];
 let globeDragging = false;
 let globeMoved = false;
 let globeStart = null;
 
+// Проверка, что d3 и topojson загрузились (защита от блокировки CDN)
+function assertLibs() {
+  if (typeof window.d3 === 'undefined') {
+    throw new Error('D3 не загрузился. Проверьте CDN в index.html (cdnjs / jsdelivr / unpkg).');
+  }
+  if (typeof window.topojson === 'undefined') {
+    throw new Error('topojson-client не загрузился. Проверьте CDN в index.html (cdnjs / jsdelivr / unpkg).');
+  }
+}
+
 export function initMap() {
-  svg = d3.select('#map');
-  viewport = d3.select('#viewport');
+  assertLibs();
+  currentTransform = window.d3.zoomIdentity;
+
+  svg = window.d3.select('#map');
+  viewport = window.d3.select('#viewport');
 
   oceanLayer = viewport.append('g').attr('class', 'ocean-layer');
   haloLayer = viewport.append('g').attr('class', 'halo-layer');
-  graticule = d3.geoGraticule10();
+  graticule = window.d3.geoGraticule10();
   countriesLayer = viewport.append('g').attr('class', 'countries-layer');
 
   setProjection('flat');
@@ -35,26 +48,27 @@ export function initMap() {
 function setProjection(mode) {
   const w = VIEWBOX.w, h = VIEWBOX.h;
   if (mode === 'globe') {
-    projection = d3.geoOrthographic()
+    projection = window.d3.geoOrthographic()
       .scale(230)
       .translate([w / 2, h / 2])
       .rotate(rotation)
       .clipAngle(90);
   } else {
-    projection = d3.geoNaturalEarth1()
+    projection = window.d3.geoNaturalEarth1()
       .scale(160)
       .translate([w / 2, h / 2]);
   }
-  path = d3.geoPath().projection(projection);
+  path = window.d3.geoPath().projection(projection);
 }
 
 export function setMapMode(mode) {
+  assertLibs();
   state.mapMode = mode;
   const w = VIEWBOX.w, h = VIEWBOX.h;
 
   // Сброс трансформа
-  currentTransform = d3.zoomIdentity;
-  if (svg && zoomBehavior) svg.call(zoomBehavior.transform, d3.zoomIdentity);
+  currentTransform = window.d3.zoomIdentity;
+  if (svg && zoomBehavior) svg.call(zoomBehavior.transform, window.d3.zoomIdentity);
 
   setProjection(mode);
 
@@ -73,7 +87,7 @@ export function setMapMode(mode) {
       .attr('fill', 'url(#oceanGrad)');
   }
 
-  // Сетка
+  // Сетка и обводка
   haloLayer.selectAll('*').remove();
   if (mode === 'globe') {
     haloLayer.append('circle')
@@ -91,7 +105,6 @@ export function setMapMode(mode) {
   renderCountries();
   updateZoomBehavior(mode);
 
-  // Событие для страниц
   emit('map:mode-changed', mode);
 }
 
@@ -117,17 +130,16 @@ function renderCountries() {
 
 function redraw() {
   if (!path) return;
-  // Океан
   if (state.mapMode === 'globe') {
     const w = VIEWBOX.w, h = VIEWBOX.h;
-    oceanLayer.selectAll('circle').attr('cx', w/2).attr('cy', h/2);
+    oceanLayer.selectAll('circle').attr('cx', w / 2).attr('cy', h / 2);
   }
   haloLayer.selectAll('path.graticule').attr('d', path);
   countriesLayer.selectAll('path.country').attr('d', path);
 }
 
 function setupZoom() {
-  zoomBehavior = d3.zoom()
+  zoomBehavior = window.d3.zoom()
     .scaleExtent([1, 25])
     .on('zoom', (event) => {
       if (state.mapMode === 'globe') return;
@@ -137,7 +149,7 @@ function setupZoom() {
     });
   svg.call(zoomBehavior);
 
-  dragBehavior = d3.drag()
+  dragBehavior = window.d3.drag()
     .on('start', (event) => {
       if (state.mapMode !== 'globe') return;
       globeDragging = true;
@@ -173,13 +185,12 @@ function updateZoomBehavior(mode) {
 
 function zoomAction(action) {
   if (state.mapMode === 'globe') return;
-  const w = VIEWBOX.w, h = VIEWBOX.h;
   if (action === 'in') {
     svg.transition().duration(250).call(zoomBehavior.scaleBy, 1.6);
   } else if (action === 'out') {
-    svg.transition().duration(250).call(zoomBehavior.scaleBy, 1/1.6);
+    svg.transition().duration(250).call(zoomBehavior.scaleBy, 1 / 1.6);
   } else if (action === 'reset') {
-    svg.transition().duration(400).call(zoomBehavior.transform, d3.zoomIdentity);
+    svg.transition().duration(400).call(zoomBehavior.transform, window.d3.zoomIdentity);
   }
 }
 
@@ -187,7 +198,7 @@ export function zoomToFeature(key) {
   if (state.mapMode === 'globe') {
     const f = featureByKey[key];
     if (!f) return;
-    const c = d3.geoCentroid(f);
+    const c = window.d3.geoCentroid(f);
     rotation = [-c[0], -c[1], 0];
     projection.rotate(rotation);
     redraw();
@@ -205,7 +216,7 @@ export function zoomToFeature(key) {
   const translate = [w / 2 - scale * x, h / 2 - scale * y];
   svg.transition().duration(600).call(
     zoomBehavior.transform,
-    d3.zoomIdentity.translate(translate[0], translate[1]).scale(scale)
+    window.d3.zoomIdentity.translate(translate[0], translate[1]).scale(scale)
   );
 }
 
@@ -262,13 +273,14 @@ function setupHover() {
 
 // ---------- Data loading ----------
 export async function loadGeoData() {
+  assertLibs();
   let lastErr = null;
   for (const url of CDN_SOURCES.countries) {
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, { cache: 'force-cache' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const topo = await res.json();
-      const geo = topojson.feature(topo, topo.objects.countries);
+      const geo = window.topojson.feature(topo, topo.objects.countries);
       features = geo.features;
       featureByKey = {};
       for (const f of features) {
