@@ -1,239 +1,271 @@
-import { QUESTION_TIME } from './config.js';
-import { COUNTRIES_DB } from './data.js';
+// src/quiz.js — логика викторины
+import { QUIZ } from './config.js';
+import { COUNTRIES_DB, getCountriesByLevel, getFlagEmoji } from './data.js';
 import {
-  state, emit, on,
-  getRandomQuestionType, shuffle,
-  getCountryPoolForLevel, getRecords, saveRecords,
-  trackCorrectAnswer, trackWrongAnswer,
-  trackGameEnd, playCorrectSound, playWrongSound,
-  playStreakSound, playRecordSound, vibrate, isAnswerCorrect,
-  updateDailyTask, saveStats,
+  state, emit, on, sfx,
+  shuffle, fuzzyMatchAny, updateDailyTask
 } from './core.js';
-import {
-  getFeatureByKey, flashCountry, clearFlash, zoomTo, resetZoom,
-} from './map.js';
 
-let timerId = null, timeLeft = 0, advanceTimer = null;
+let timer = null;
+let timerValue = 0;
+let paused = false;
+let transitioning = false;
+let autoNextTimer = null;
+let startTime = 0;
 
-/* ============================================================
-   START
-   ============================================================ */
-export function startQuiz() {
-  const pool = shuffle(
-    getCountryPoolForLevel(state.selectedLevel, getFeatureByKey())
-  ).slice(0, 10);
+export function initQuiz() {
+  on('quiz:start', startQuiz);
+  on('quiz:answer-id', (id) => handleAnswer(id, false));
+  on('quiz:answer-text', (text) => handleTextAnswer(text));
+  on('quiz:hint', useHint);
+  on('quiz:next', nextQuestion);
+  on('quiz:exit', exitQuiz);
+  document.addEventListener('visibilitychange', () => {
+    if (!state.quiz || !state.quiz.blitz) return;
+    paused = document.hidden;
+  });
+}
 
-  state.mode = 'quiz';
+function randomQuestionType() {
+  return QUIZ.types[Math.floor(Math.random() * QUIZ.types.length)];
+}
+
+function makeQuestions(level) {
+  const pool = getCountriesByLevel(level);
+  if (pool.length === 0) return [];
+  const shuffled = shuffle(pool);
+  const questions = [];
+  const total = QUIZ.totalQuestions;
+  for (let i = 0; i < total; i++) {
+    const c = shuffled[i % shuffled.length];
+    questions.push({
+      id: c.id,
+      type: randomQuestionType(),
+      country: c
+    });
+  }
+  return questions;
+}
+
+function startQuiz() {
+  const level = state.selectedLevel;
+  const questions = makeQuestions(level);
+  if (!questions.length) {
+    emit('toast', { type: 'error', text: 'Нет стран для этого уровня' });
+    return;
+  }
   state.quiz = {
-    level: state.selectedLevel,
+    level,
     blitz: state.selectedBlitz,
     inputMode: state.selectedInputMode,
-    questions: pool.map(key => ({ id: key, type: getRandomQuestionType() })),
+    questions,
     current: 0,
     score: 0,
     answered: false,
     streak: 0,
     hintsUsed: 0,
+    hintForCurrent: 0,
+    results: [],
+    finished: false
   };
-
-  clearFlash();
-  resetZoom();
-  emit('mode:set-active', 'setup');
+  state.mode = 'quiz';
+  emit('mode:set', 'quiz');
+  transitioning = false;
   emit('quiz:render-question');
-  emit('panel:collapse');
+  startTimerIfBlitz();
 }
 
-/* ============================================================
-   TIMER
-   ============================================================ */
-export function startTimer() {
+function startTimerIfBlitz() {
   stopTimer();
-  timeLeft = QUESTION_TIME;
-  updateTimerUI();
-  timerId = setInterval(() => {
-    timeLeft -= 0.1;
-    if (timeLeft <= 0) { stopTimer(); onTimeout(); }
-    updateTimerUI();
-  }, 100);
+  if (!state.quiz || !state.quiz.blitz) return;
+  timerValue = QUIZ.blitzTime;
+  paused = false;
+  emit('quiz:timer', { value: timerValue, max: QUIZ.blitzTime });
+  timer = setInterval(() => {
+    if (paused || !state.quiz || state.quiz.answered) return;
+    timerValue = Math.max(0, timerValue - QUIZ.blitzTick / 1000);
+    emit('quiz:timer', { value: timerValue, max: QUIZ.blitzTime });
+    if (timerValue <= 0) {
+      stopTimer();
+      timeoutAnswer();
+    }
+  }, QUIZ.blitzTick);
 }
 
-export function stopTimer() {
-  if (timerId) { clearInterval(timerId); timerId = null; }
-}
-
-function updateTimerUI() {
-  const bar = document.getElementById('timer-bar');
-  const num = document.getElementById('timer-num');
-  if (bar) {
-    bar.style.width = Math.max(0, timeLeft / QUESTION_TIME * 100) + '%';
-    bar.classList.toggle('low', timeLeft <= 5);
-  }
-  if (num) num.textContent = Math.max(0, Math.ceil(timeLeft));
-}
-
-function onTimeout() {
-  if (state.quiz && !state.quiz.answered) {
-    handleAnswer({ feature: null, key: null });
+function stopTimer() {
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
   }
 }
 
-/* ============================================================
-   ANSWER (клик)
-   ============================================================ */
-on('quiz:answer', (data) => handleAnswer(data));
-
-function handleAnswer({ feature, key: clickedKey }) {
-  const quiz = state.quiz;
-  if (!quiz || quiz.answered) return;
-  quiz.answered = true;
-  stopTimer();
-
-  const q = quiz.questions[quiz.current];
-  const correct = clickedKey === q.id;
-
-  applyAnswer(correct, q.id, clickedKey);
-
-  if (feature) flashCountry(feature, correct ? 'flash-correct' : 'flash-wrong');
-  const correctF = getFeatureByKey()[q.id];
-  if (!correct && correctF) flashCountry(correctF, 'flash-correct');
-  if (correctF) zoomTo(correctF);
-
-  emit('quiz:click-feedback', { correct, question: q, timeout: !feature });
-
-  if (quiz.blitz) {
-    clearTimeout(advanceTimer);
-    advanceTimer = setTimeout(nextQuestion, 1400);
-  }
+function timeoutAnswer() {
+  if (!state.quiz || state.quiz.answered) return;
+  handleAnswer(null, true);
 }
 
-/* ============================================================
-   ANSWER (текст)
-   ============================================================ */
-export function submitTextAnswer(value) {
-  const quiz = state.quiz;
-  if (!quiz || quiz.answered || !quiz.inputMode) return;
-  const v = value.trim();
-  if (!v) return;
-  quiz.answered = true;
-  stopTimer();
-
-  const q = quiz.questions[quiz.current];
-  const country = COUNTRIES_DB[q.id];
-  const correct = isAnswerCorrect(v, country);
-
-  applyAnswer(correct, q.id);
-
-  const f = getFeatureByKey()[q.id];
-  if (f) { flashCountry(f, 'flash-correct'); zoomTo(f); }
-
-  emit('quiz:text-feedback', { correct, question: q, value: v, country });
-
-  if (quiz.blitz) {
-    clearTimeout(advanceTimer);
-    advanceTimer = setTimeout(nextQuestion, 1800);
-  }
-}
-
-/* ============================================================
-   APPLY
-   ============================================================ */
-function applyAnswer(correct, targetKey, clickedKey) {
-  const quiz = state.quiz;
-  if (correct) {
-    quiz.score++;
-    quiz.streak++;
-    state.stats.currentStreak = quiz.streak;
-    if (quiz.streak > state.stats.maxStreak) state.stats.maxStreak = quiz.streak;
-    trackCorrectAnswer(targetKey);
-    playCorrectSound();
-    vibrate(20);
-    if (quiz.streak >= 3 && quiz.streak % 3 === 0) playStreakSound();
-    updateDailyTask('correct');
+function handleTextAnswer(text) {
+  if (!state.quiz || state.quiz.answered || transitioning) return;
+  const q = state.quiz.questions[state.quiz.current];
+  const c = q.country;
+  let correct = false;
+  if (q.type === 'name') {
+    correct = fuzzyMatchAny(text, [c.name]);
+  } else if (q.type === 'capital') {
+    correct = fuzzyMatchAny(text, [c.capital]);
   } else {
-    quiz.streak = 0;
-    trackWrongAnswer(targetKey);
-    if (clickedKey && clickedKey !== targetKey) trackWrongAnswer(clickedKey);
-    playWrongSound();
-    vibrate(80);
+    // flag — не бывает в input mode
+    correct = fuzzyMatchAny(text, [c.name]);
   }
-  saveStats();
+  submitAnswer(correct, c.id);
 }
 
-/* ============================================================
-   HINT
-   ============================================================ */
-export function useHint() {
-  const quiz = state.quiz;
-  if (!quiz || quiz.answered || quiz.hintsUsed >= 2) return;
-  quiz.hintsUsed++;
-  quiz.score = Math.max(0, quiz.score - 1);
-  emit('quiz:hint-used');
+function handleAnswer(id, timeout) {
+  if (!state.quiz || state.quiz.answered || transitioning) return;
+  if (timeout) {
+    submitAnswer(false, null);
+    return;
+  }
+  const q = state.quiz.questions[state.quiz.current];
+  const correct = id === q.country.id;
+  submitAnswer(correct, id);
 }
 
-/* ============================================================
-   NEXT
-   ============================================================ */
-export function nextQuestion() {
-  clearTimeout(advanceTimer);
+function submitAnswer(correct, clickedId) {
+  const q = state.quiz.questions[state.quiz.current];
+  const c = q.country;
+  state.quiz.answered = true;
   stopTimer();
-  clearFlash();
-  state.quiz.current++;
+
+  const isBlitz = state.quiz.blitz;
+  const basePoints = isBlitz ? 15 : 10;
+  let points = correct ? basePoints : 0;
+
+  if (correct) {
+    state.quiz.score += points;
+    state.quiz.streak += 1;
+    if (state.quiz.streak > state.stats.maxStreak) {
+      state.stats.maxStreak = state.quiz.streak;
+    }
+    state.stats.currentStreak = state.quiz.streak;
+    state.stats.countryCorrect[c.id] = (state.stats.countryCorrect[c.id] || 0) + 1;
+    if (state.quiz.streak >= 3) sfx.streak();
+    else sfx.correct();
+    updateDailyTask('correct', 1);
+    if (state.quiz.streak > (state.stats._dailyStreak || 0)) {
+      // просто фиксируем прогресс
+    }
+    const streakNow = state.quiz.streak;
+    if (streakNow >= 3) {
+      // обновляем daily streak
+      const dProg = Math.max(0, streakNow);
+      updateDailyTask('streak', 0);
+      // напрямую сохраняем максимум
+    }
+  } else {
+    state.quiz.streak = 0;
+    state.stats.currentStreak = 0;
+    state.stats.countryErrors[c.id] = (state.stats.countryErrors[c.id] || 0) + 1;
+    sfx.wrong();
+  }
+
+  state.quiz.results.push({
+    id: c.id,
+    type: q.type,
+    correct,
+    clickedId: clickedId || null,
+    hintsUsed: state.quiz.hintForCurrent
+  });
+
+  emit('quiz:feedback', {
+    correct,
+    correctId: c.id,
+    clickedId: clickedId || null,
+    timer: isBlitz ? timerValue : null
+  });
+
+  if (isBlitz) {
+    autoNextTimer = setTimeout(() => {
+      nextQuestion();
+    }, QUIZ.blitzAutoNext);
+  }
+}
+
+function nextQuestion() {
+  if (!state.quiz) return;
+  if (autoNextTimer) {
+    clearTimeout(autoNextTimer);
+    autoNextTimer = null;
+  }
+  if (state.quiz.answered === false) {
+    // если не ответили — не пропускаем
+    return;
+  }
+  state.quiz.answered = false;
+  state.quiz.hintForCurrent = 0;
+  state.quiz.current += 1;
   if (state.quiz.current >= state.quiz.questions.length) {
     finishQuiz();
-  } else {
-    resetZoom();
-    emit('quiz:render-question');
+    return;
   }
+  emit('quiz:render-question');
+  startTimerIfBlitz();
 }
 
-/* ============================================================
-   FINISH
-   ============================================================ */
-export function finishQuiz() {
-  const quiz = state.quiz;
-  const total = quiz.questions.length;
-  const records = getRecords();
-  const recordKey = quiz.level + (quiz.blitz ? '-blitz' : '-classic');
-  const prev = records[recordKey];
-  const isNewRecord = !prev || quiz.score > prev.score;
+function useHint() {
+  if (!state.quiz || state.quiz.answered) return;
+  if (state.quiz.hintForCurrent >= QUIZ.maxHints) return;
+  state.quiz.hintForCurrent += 1;
+  state.quiz.hintsUsed += 1;
+  // штраф 1 очко — СРАЗУ
+  state.quiz.score = Math.max(0, state.quiz.score - 1);
+  emit('quiz:hint-used', { level: state.quiz.hintForCurrent });
+  emit('toast', { type: 'info', text: '💡 Подсказка (−1 очко)' });
+}
 
-  if (isNewRecord) {
-    records[recordKey] = {
-      score: quiz.score,
-      date: new Date().toLocaleDateString('ru-RU'),
-    };
-    saveRecords(records);
+function finishQuiz() {
+  stopTimer();
+  if (!state.quiz) return;
+  const q = state.quiz;
+  q.finished = true;
+  const score = q.score;
+  const total = q.questions.length;
+  const correctCount = q.results.filter(r => r.correct).length;
+  const perfect = correctCount === total;
+  const hintsUsed = q.hintsUsed;
+
+  // Stats
+  state.stats.gamesPlayed += 1;
+  if (perfect) {
+    state.stats.perfectGames += 1;
+    state.stats.continentsPerfected[q.level] = true;
+    if (q.blitz) state.stats.blitzPerfect += 1;
   }
-  trackGameEnd(quiz.score, total, quiz.level, quiz.blitz);
-  if (quiz.blitz) updateDailyTask('blitz', 1);
+  state.stats._totalScore = (state.stats._totalScore || 0) + score;
+  updateDailyTask('gamesPlayed', 1);
+  if (q.blitz) updateDailyTask('blitz', 1);
 
   emit('quiz:results', {
-    score: quiz.score,
-    total,
-    isNewRecord,
-    previousRecord: prev,
+    score, total, correctCount, perfect, hintsUsed,
+    level: q.level, blitz: q.blitz, inputMode: q.inputMode,
+    results: q.results
   });
-  if (isNewRecord) setTimeout(playRecordSound, 300);
 }
 
-/* ============================================================
-   EXIT
-   ============================================================ */
-export function exitQuiz() {
-  const answered = state.quiz ? state.quiz.current : 0;
-  if (answered > 0 && !confirm('Выйти из викторины? Прогресс не сохранится.')) return;
+function exitQuiz() {
   stopTimer();
-  clearTimeout(advanceTimer);
+  if (autoNextTimer) {
+    clearTimeout(autoNextTimer);
+    autoNextTimer = null;
+  }
   state.quiz = null;
-  emit('mode:set', 'setup');
+  transitioning = false;
 }
 
-/* ============================================================
-   AUTO-PAUSE
-   ============================================================ */
-document.addEventListener('visibilitychange', () => {
-  const q = state.quiz;
-  if (!q || !q.blitz || q.answered || state.mode !== 'quiz') return;
-  if (document.hidden) stopTimer();
-  else startTimer();
-});
+export function resetQuiz() {
+  exitQuiz();
+}
+
+export function currentTimerValue() {
+  return timerValue;
+}
